@@ -1,0 +1,32 @@
+version: '3.8'
+
+services:
+  backend:
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+    ports:
+      - "8000:8000"
+    environment:
+      - DATABASE_URL=sqlite:///./landslide_ews.db
+      - JWT_SECRET=super_secret_key_ner_landslide_ews_2026
+    volumes:
+      - ./backend:/workspace/backend
+      - ./models:/workspace/models
+      - ./two_tier_landslide_ews_dataset.csv:/workspace/two_tier_landslide_ews_dataset.csv
+    restart: always
+
+  frontend:
+    build:
+      context: .
+      dockerfile: frontend/Dockerfile
+    ports:
+      - "5173:5173"
+    environment:
+      - VITE_API_URL=http://localhost:8000
+    volumes:
+      - ./frontend:/workspace
+      - /workspace/node_modules
+    depends_on:
+      - backend
+    restart: always
