@@ -370,13 +370,13 @@ const SensorBeacon: React.FC<{
         </group>
       </Float>
 
-      {/* 3D Interactive HTML Overlay Card */}
-      {(hovered || isSelected || prob >= 0.75) && (
+      {/* 3D Interactive HTML Overlay Card - only show on active hover or selection to avoid clutter */}
+      {(hovered || isSelected) && (
         <Html
           position={[0, 7.5, 0]}
           center
-          distanceFactor={45}
-          style={{ pointerEvents: hovered || isSelected ? 'auto' : 'none' }}
+          distanceFactor={40}
+          style={{ pointerEvents: 'auto' }}
         >
           <div
             onClick={(e) => {
