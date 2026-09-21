@@ -102,7 +102,9 @@ export const GISMap: React.FC<GISMapProps> = ({
 }) => {
   const mapCenter: [number, number] = [26.2, 92.9]; // Center over Northeast India
   const defaultZoom = 7.5;
-  const [mapMode, setMapMode] = useState<"geo-ai" | "radar-wms" | "hazard-zones" | "osm-terrain">("geo-ai");
+  const [basemap, setBasemap] = useState<"dark" | "satellite" | "topo" | "osm">("dark");
+  const [showRadar, setShowRadar] = useState<boolean>(false);
+  const [showHazardZones, setShowHazardZones] = useState<boolean>(true);
 
   // Threat colors hierarchy
   const getAlertColor = (riskScore: number) => {
@@ -122,48 +124,79 @@ export const GISMap: React.FC<GISMapProps> = ({
   return (
     <div className="w-full h-full relative rounded-2xl overflow-hidden border border-borderColor shadow-2xl min-h-[520px] flex flex-col bg-bgCard">
       
-      {/* Floating Pill Selector (Top Map Center Overlay) */}
-      <div className="absolute top-3 left-1/2 transform -translate-x-1/2 z-[1000] flex flex-wrap bg-bgCard/95 border border-borderColor rounded-xl p-1 shadow-lg backdrop-blur-md gap-0.5 max-w-[90%] sm:max-w-max justify-center">
-        <button
-          onClick={() => setMapMode("geo-ai")}
-          className={`px-2.5 py-1.5 rounded-lg text-[9px] font-black uppercase transition tracking-wider flex items-center gap-1.5 ${
-            mapMode === "geo-ai"
-              ? "bg-blue-600 text-white shadow-sm"
-              : "text-textSecondary hover:text-textPrimary"
-          }`}
-        >
-          🛰️ Geo-AI Grid
-        </button>
-        <button
-          onClick={() => setMapMode("radar-wms")}
-          className={`px-2.5 py-1.5 rounded-lg text-[9px] font-black uppercase transition tracking-wider flex items-center gap-1.5 ${
-            mapMode === "radar-wms"
-              ? "bg-blue-600 text-white shadow-sm"
-              : "text-textSecondary hover:text-textPrimary"
-          }`}
-        >
-          🌧️ MOSDAC Radar
-        </button>
-        <button
-          onClick={() => setMapMode("hazard-zones")}
-          className={`px-2.5 py-1.5 rounded-lg text-[9px] font-black uppercase transition tracking-wider flex items-center gap-1.5 ${
-            mapMode === "hazard-zones"
-              ? "bg-blue-600 text-white shadow-sm"
-              : "text-textSecondary hover:text-textPrimary"
-          }`}
-        >
-          ⚠️ NERDRR Hazard Zones
-        </button>
-        <button
-          onClick={() => setMapMode("osm-terrain")}
-          className={`px-2.5 py-1.5 rounded-lg text-[9px] font-black uppercase transition tracking-wider flex items-center gap-1.5 ${
-            mapMode === "osm-terrain"
-              ? "bg-blue-600 text-white shadow-sm"
-              : "text-textSecondary hover:text-textPrimary"
-          }`}
-        >
-          🗺️ OSM Terrain
-        </button>
+      {/* Floating Basemap & Overlay Bar (Top Center Overlay) */}
+      <div className="absolute top-3 left-1/2 transform -translate-x-1/2 z-[1000] flex flex-wrap items-center bg-bgCard/95 border border-borderColor rounded-xl p-1 shadow-lg backdrop-blur-md gap-1 max-w-[95%] sm:max-w-max justify-center">
+        {/* Basemap Switcher */}
+        <div className="flex items-center gap-0.5 pr-1.5 border-r border-borderColor/60">
+          <button
+            onClick={() => setBasemap("dark")}
+            className={`px-2.5 py-1.5 rounded-lg text-[9px] font-black uppercase transition tracking-wider flex items-center gap-1 ${
+              basemap === "dark"
+                ? "bg-blue-600 text-white shadow-sm"
+                : "text-textSecondary hover:text-textPrimary"
+            }`}
+            title="Tactical Dark Gray Map"
+          >
+            🌑 Tactical Dark
+          </button>
+          <button
+            onClick={() => setBasemap("satellite")}
+            className={`px-2.5 py-1.5 rounded-lg text-[9px] font-black uppercase transition tracking-wider flex items-center gap-1 ${
+              basemap === "satellite"
+                ? "bg-blue-600 text-white shadow-sm"
+                : "text-textSecondary hover:text-textPrimary"
+            }`}
+            title="High-Res Satellite Imagery"
+          >
+            🛰️ Satellite
+          </button>
+          <button
+            onClick={() => setBasemap("topo")}
+            className={`px-2.5 py-1.5 rounded-lg text-[9px] font-black uppercase transition tracking-wider flex items-center gap-1 ${
+              basemap === "topo"
+                ? "bg-blue-600 text-white shadow-sm"
+                : "text-textSecondary hover:text-textPrimary"
+            }`}
+            title="Topographic Elevation Map"
+          >
+            ⛰️ Topo
+          </button>
+          <button
+            onClick={() => setBasemap("osm")}
+            className={`px-2.5 py-1.5 rounded-lg text-[9px] font-black uppercase transition tracking-wider flex items-center gap-1 ${
+              basemap === "osm"
+                ? "bg-blue-600 text-white shadow-sm"
+                : "text-textSecondary hover:text-textPrimary"
+            }`}
+            title="OpenStreetMap Standard"
+          >
+            🗺️ Street
+          </button>
+        </div>
+
+        {/* Layer Toggles */}
+        <div className="flex items-center gap-0.5 pl-1">
+          <button
+            onClick={() => setShowRadar(!showRadar)}
+            className={`px-2.5 py-1.5 rounded-lg text-[9px] font-black uppercase transition tracking-wider flex items-center gap-1 ${
+              showRadar
+                ? "bg-indigo-600 text-white shadow-sm"
+                : "text-textSecondary hover:text-textPrimary"
+            }`}
+          >
+            🌧️ Radar
+          </button>
+          <button
+            onClick={() => setShowHazardZones(!showHazardZones)}
+            className={`px-2.5 py-1.5 rounded-lg text-[9px] font-black uppercase transition tracking-wider flex items-center gap-1 ${
+              showHazardZones
+                ? "bg-amber-600 text-white shadow-sm"
+                : "text-textSecondary hover:text-textPrimary"
+            }`}
+          >
+            ⚠️ Hazard Zones
+          </button>
+        </div>
       </div>
 
       {/* Map Container */}
@@ -174,33 +207,50 @@ export const GISMap: React.FC<GISMapProps> = ({
           scrollWheelZoom={true} 
           className="w-full h-full"
         >
-          {/* Base tiles mapping */}
-          {mapMode === "osm-terrain" ? (
+          {/* Watermark-Free High-Performance Basemaps */}
+          {basemap === "dark" && (
             <TileLayer
-              attribution='&copy; <a href="https://opentopomap.org">OpenTopoMap</a> contributors'
-              url="https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png"
+              attribution='&copy; <a href="https://www.esri.com">Esri</a> &mdash; Esri Dark Canvas'
+              url="https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Base/MapServer/tile/{z}/{y}/{x}"
+              maxZoom={16}
             />
-          ) : (
+          )}
+          {basemap === "satellite" && (
             <TileLayer
-              attribution='&copy; <a href="https://carto.com/attributions">CARTO</a>'
-              url="https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png"
+              attribution='&copy; <a href="https://www.esri.com">Esri</a>, Earthstar Geographics'
+              url="https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}"
+              maxZoom={18}
+            />
+          )}
+          {basemap === "topo" && (
+            <TileLayer
+              attribution='&copy; <a href="https://www.esri.com">Esri</a> &mdash; World Topo Map'
+              url="https://server.arcgisonline.com/ArcGIS/rest/services/World_Topo_Map/MapServer/tile/{z}/{y}/{x}"
+              maxZoom={18}
+            />
+          )}
+          {basemap === "osm" && (
+            <TileLayer
+              attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+              url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+              maxZoom={19}
             />
           )}
 
-          {/* Renders weather rain radar clouds in MOSDAC Mode */}
-          {mapMode === "radar-wms" && (
+          {/* Renders live weather rain radar clouds */}
+          {showRadar && (
             <WMSTileLayer
               url="https://mesonet.agron.iastate.edu/cgi-bin/wms/nexrad/n0r.cgi"
               layers="nexrad-n0r-900913"
               format="image/png"
               transparent={true}
-              opacity={0.55}
+              opacity={0.6}
               attribution="Live Weather Radar Overlay"
             />
           )}
 
           {/* Renders NERDRR Multi-Hazard Zones polygons */}
-          {mapMode === "hazard-zones" && (
+          {showHazardZones && (
             HAZARD_PERIMETERS.map((h, idx) => (
               <Polygon
                 key={idx}
@@ -208,7 +258,7 @@ export const GISMap: React.FC<GISMapProps> = ({
                 pathOptions={{
                   color: h.severity === "EXTREME" ? "#EF4444" : "#F97316",
                   fillColor: h.severity === "EXTREME" ? "#EF4444" : "#F97316",
-                  fillOpacity: 0.2,
+                  fillOpacity: 0.22,
                   weight: 2,
                   dashArray: "6, 6"
                 }}

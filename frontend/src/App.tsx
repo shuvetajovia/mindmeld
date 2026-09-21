@@ -7,12 +7,13 @@ import { DataAnalysisPage } from "./pages/DataAnalysisPage";
 import { FieldReport } from "./pages/FieldReport";
 import { ProjectOverview } from "./pages/ProjectOverview";
 import { TerrainAnalysisPage } from "./pages/TerrainAnalysisPage";
+import { NERSimulationPage } from "./pages/NERSimulationPage";
 import { ThemeToggle } from "./components/ThemeToggle";
 import { useLiveTelemetry } from "./hooks/useLiveTelemetry";
 import { mockApi } from "./services/mockApi";
 import { 
   LayoutDashboard, Compass, Radio, Cpu, Smartphone, Home,
-  AlertTriangle, Clock, User, RefreshCw, X, ShieldAlert, SmartphoneNfc, Mountain
+  AlertTriangle, Clock, User, RefreshCw, X, ShieldAlert, SmartphoneNfc, Mountain, Sparkles
 } from "lucide-react";
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:8000";
@@ -39,13 +40,14 @@ function computeDistance(lat1: number, lon1: number, lat2: number, lon2: number)
 
 // Navigation tabs definition
 const NAV_TABS = [
-  { key: "overview",     label: "Project Overview",icon: Home            },
-  { key: "dashboard",    label: "Command Center",  icon: LayoutDashboard },
-  { key: "terrain3d",    label: "3D Terrain",      icon: Mountain        },
-  { key: "routing",      label: "Safe Routing",    icon: Compass         },
-  { key: "iot",          label: "IoT Sensor Grid", icon: Radio           },
-  { key: "prediction",   label: "Prediction Core", icon: Cpu             },
-  { key: "reporting",    label: "Citizen Report",  icon: Smartphone      },
+  { key: "overview",     label: "Project Overview",  icon: Home            },
+  { key: "simulation",   label: "NER 3D Simulation", icon: Sparkles        },
+  { key: "dashboard",    label: "Command Center",    icon: LayoutDashboard },
+  { key: "terrain3d",    label: "3D Terrain",        icon: Mountain        },
+  { key: "routing",      label: "Safe Routing",      icon: Compass         },
+  { key: "iot",          label: "IoT Sensor Grid",   icon: Radio           },
+  { key: "prediction",   label: "Prediction Core",   icon: Cpu             },
+  { key: "reporting",    label: "Citizen Report",    icon: Smartphone      },
 ] as const;
 
 type TabKey = typeof NAV_TABS[number]["key"];
@@ -199,10 +201,10 @@ function App() {
               <ShieldAlert className="w-5 h-5 text-white animate-pulse" />
             </div>
             <div>
-              <h1 className="text-base font-bold tracking-tight text-slate-900 leading-tight">
+              <h1 className="text-base font-bold tracking-tight text-textPrimary leading-tight">
                 MindMeld AI Landslide Resilience Grid
               </h1>
-              <p className="text-[11px] font-semibold text-slate-500">
+              <p className="text-[11px] font-semibold text-textSecondary">
                 AI Early Warning System • Developed by A Shuveta Jovi
               </p>
             </div>
@@ -210,7 +212,7 @@ function App() {
           <div className="lg:hidden"><ThemeToggle /></div>
         </div>
 
-        {/* 6-Tab Navigation */}
+        {/* Tab Navigation */}
         <nav className="flex items-center bg-bgPrimary border border-borderColor rounded-xl p-1 shrink-0 w-full lg:w-auto overflow-x-auto gap-0.5">
           {NAV_TABS.map(({ key, label, icon: Icon }) => (
             <button
@@ -295,7 +297,8 @@ function App() {
 
       {/* ── MAIN CONTENT ────────────────────────────────────────────────── */}
       <main className="flex-grow">
-        {activeTab === "overview"      && <ProjectOverview onLaunchGIS={() => setActiveTab("dashboard")} />}
+        {activeTab === "overview"      && <ProjectOverview onLaunchGIS={() => setActiveTab("dashboard")} onLaunchSimulation={() => setActiveTab("simulation")} />}
+        {activeTab === "simulation"    && <NERSimulationPage />}
         {activeTab === "dashboard"     && <Dashboard apiBaseUrl={API_BASE_URL} />}
         {activeTab === "terrain3d"     && <TerrainAnalysisPage />}
         {activeTab === "routing"       && <EmergencyRouting apiBaseUrl={API_BASE_URL} />}

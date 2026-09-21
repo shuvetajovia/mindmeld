@@ -97,10 +97,10 @@ export const TerrainAnalysisPage: React.FC = () => {
           </div>
           <div>
             <div className="flex items-center gap-2">
-              <h2 className="text-base font-extrabold text-slate-900 tracking-tight">
+              <h2 className="text-base font-extrabold text-textPrimary tracking-tight">
                 3D Digital Twin GIS & Risk Elevation Grid
               </h2>
-              <span className="text-[10px] font-black uppercase px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-600 border border-emerald-500/20">
+              <span className="text-[10px] font-black uppercase px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
                 Live 40-Node Grid
               </span>
             </div>
