@@ -230,9 +230,9 @@ export const TerrainAnalysisPage: React.FC = () => {
       </header>
 
       {/* ── MAIN 3D WORKSPACE & SIDE INSPECTOR ── */}
-      <div className="flex-1 grid grid-cols-1 lg:grid-cols-4 gap-3 min-h-0">
+      <div className="flex-1 grid grid-cols-1 lg:grid-cols-4 gap-3 min-h-[640px]">
         {/* 3D WebGL Canvas Viewport (Span 3 Cols) */}
-        <div className="lg:col-span-3 bg-[#050811] rounded-3xl border border-borderColor shadow-xl overflow-hidden relative flex flex-col">
+        <div className="lg:col-span-3 bg-[#050811] rounded-3xl border border-borderColor shadow-xl overflow-hidden relative flex flex-col min-h-[600px] h-full">
           <Terrain3D
             sensors={sensors}
             viewMode={viewMode}
