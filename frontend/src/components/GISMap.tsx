@@ -122,85 +122,92 @@ export const GISMap: React.FC<GISMapProps> = ({
   };
 
   return (
-    <div className="w-full h-full relative rounded-2xl overflow-hidden border border-borderColor shadow-2xl min-h-[520px] flex flex-col bg-bgCard">
+    <div className="w-full h-full rounded-3xl overflow-hidden border border-borderColor shadow-2xl min-h-[560px] flex flex-col bg-bgCard">
       
-      {/* Floating Basemap & Overlay Bar (Top Center Overlay) */}
-      <div className="absolute top-3 left-1/2 transform -translate-x-1/2 z-[1000] flex flex-wrap items-center bg-bgCard border-2 border-borderColor rounded-2xl p-1.5 shadow-2xl backdrop-blur-md gap-1.5 max-w-[95%] sm:max-w-max justify-center">
-        {/* Basemap Switcher */}
-        <div className="flex items-center gap-1 pr-1.5 border-r border-borderColor">
-          <button
-            onClick={() => setBasemap("dark")}
-            className={`px-3 py-1.5 rounded-xl text-[10px] font-black uppercase transition-all tracking-wider flex items-center gap-1.5 ${
-              basemap === "dark"
-                ? "bg-blue-600 text-white shadow-md shadow-blue-600/30 scale-105"
-                : "bg-bgPrimary text-textPrimary hover:bg-borderColor/40 border border-borderColor/60"
-            }`}
-            title="Tactical Dark Gray Map"
-          >
-            🌑 Tactical Dark
-          </button>
-          <button
-            onClick={() => setBasemap("satellite")}
-            className={`px-3 py-1.5 rounded-xl text-[10px] font-black uppercase transition-all tracking-wider flex items-center gap-1.5 ${
-              basemap === "satellite"
-                ? "bg-blue-600 text-white shadow-md shadow-blue-600/30 scale-105"
-                : "bg-bgPrimary text-textPrimary hover:bg-borderColor/40 border border-borderColor/60"
-            }`}
-            title="High-Res Satellite Imagery"
-          >
-            🛰️ Satellite
-          </button>
-          <button
-            onClick={() => setBasemap("topo")}
-            className={`px-3 py-1.5 rounded-xl text-[10px] font-black uppercase transition-all tracking-wider flex items-center gap-1.5 ${
-              basemap === "topo"
-                ? "bg-blue-600 text-white shadow-md shadow-blue-600/30 scale-105"
-                : "bg-bgPrimary text-textPrimary hover:bg-borderColor/40 border border-borderColor/60"
-            }`}
-            title="Topographic Elevation Map"
-          >
-            ⛰️ Topo
-          </button>
-          <button
-            onClick={() => setBasemap("osm")}
-            className={`px-3 py-1.5 rounded-xl text-[10px] font-black uppercase transition-all tracking-wider flex items-center gap-1.5 ${
-              basemap === "osm"
-                ? "bg-blue-600 text-white shadow-md shadow-blue-600/30 scale-105"
-                : "bg-bgPrimary text-textPrimary hover:bg-borderColor/40 border border-borderColor/60"
-            }`}
-            title="OpenStreetMap Standard"
-          >
-            🗺️ Street
-          </button>
+      {/* ── TOP MAP CONTROLS TOOLBAR (OUTSIDE MAP) ── */}
+      <div className="px-5 py-3.5 bg-bgCard border-b border-borderColor flex flex-wrap items-center justify-between gap-3 shrink-0">
+        <div className="flex items-center gap-2.5">
+          <span className="p-1.5 bg-blue-500/10 text-blue-600 dark:text-blue-400 rounded-lg font-black text-xs uppercase flex items-center gap-1.5 border border-blue-500/20">
+            🛰️ Regional GIS Grid
+          </span>
+          <span className="text-xs font-black text-textPrimary">
+            Northeast India Command Network
+          </span>
         </div>
 
-        {/* Layer Toggles */}
-        <div className="flex items-center gap-1 pl-1">
-          <button
-            onClick={() => setShowRadar(!showRadar)}
-            className={`px-3 py-1.5 rounded-xl text-[10px] font-black uppercase transition-all tracking-wider flex items-center gap-1.5 ${
-              showRadar
-                ? "bg-indigo-600 text-white shadow-md shadow-indigo-600/30 scale-105"
-                : "bg-bgPrimary text-textPrimary hover:bg-borderColor/40 border border-borderColor/60"
-            }`}
-          >
-            🌧️ Radar
-          </button>
-          <button
-            onClick={() => setShowHazardZones(!showHazardZones)}
-            className={`px-3 py-1.5 rounded-xl text-[10px] font-black uppercase transition-all tracking-wider flex items-center gap-1.5 ${
-              showHazardZones
-                ? "bg-amber-600 text-white shadow-md shadow-amber-600/30 scale-105"
-                : "bg-bgPrimary text-textPrimary hover:bg-borderColor/40 border border-borderColor/60"
-            }`}
-          >
-            ⚠️ Hazard Zones
-          </button>
+        <div className="flex flex-wrap items-center gap-3">
+          {/* Basemap Switcher Chips */}
+          <div className="flex items-center bg-bgPrimary border border-borderColor rounded-xl p-1 gap-1 shadow-sm">
+            <button
+              onClick={() => setBasemap("dark")}
+              className={`px-3 py-1.5 rounded-lg text-[10px] font-black uppercase transition-all tracking-wider flex items-center gap-1 ${
+                basemap === "dark"
+                  ? "bg-blue-600 text-white shadow-sm"
+                  : "text-textSecondary hover:text-textPrimary"
+              }`}
+            >
+              🌑 Dark
+            </button>
+            <button
+              onClick={() => setBasemap("satellite")}
+              className={`px-3 py-1.5 rounded-lg text-[10px] font-black uppercase transition-all tracking-wider flex items-center gap-1 ${
+                basemap === "satellite"
+                  ? "bg-blue-600 text-white shadow-sm"
+                  : "text-textSecondary hover:text-textPrimary"
+              }`}
+            >
+              🛰️ Satellite
+            </button>
+            <button
+              onClick={() => setBasemap("topo")}
+              className={`px-3 py-1.5 rounded-lg text-[10px] font-black uppercase transition-all tracking-wider flex items-center gap-1 ${
+                basemap === "topo"
+                  ? "bg-blue-600 text-white shadow-sm"
+                  : "text-textSecondary hover:text-textPrimary"
+              }`}
+            >
+              ⛰️ Topo
+            </button>
+            <button
+              onClick={() => setBasemap("osm")}
+              className={`px-3 py-1.5 rounded-lg text-[10px] font-black uppercase transition-all tracking-wider flex items-center gap-1 ${
+                basemap === "osm"
+                  ? "bg-blue-600 text-white shadow-sm"
+                  : "text-textSecondary hover:text-textPrimary"
+              }`}
+            >
+              🗺️ Street
+            </button>
+          </div>
+
+          {/* Layer Toggles */}
+          <div className="flex items-center bg-bgPrimary border border-borderColor rounded-xl p-1 gap-1 shadow-sm">
+            <button
+              onClick={() => setShowRadar(!showRadar)}
+              className={`px-3 py-1.5 rounded-lg text-[10px] font-black uppercase transition-all tracking-wider flex items-center gap-1 ${
+                showRadar
+                  ? "bg-indigo-600 text-white shadow-sm"
+                  : "text-textSecondary hover:text-textPrimary"
+              }`}
+            >
+              🌧️ Radar WMS
+            </button>
+            <button
+              onClick={() => setShowHazardZones(!showHazardZones)}
+              className={`px-3 py-1.5 rounded-lg text-[10px] font-black uppercase transition-all tracking-wider flex items-center gap-1 ${
+                showHazardZones
+                  ? "bg-amber-600 text-white shadow-sm"
+                  : "text-textSecondary hover:text-textPrimary"
+              }`}
+            >
+              ⚠️ Hazard Zones
+            </button>
+          </div>
         </div>
       </div>
 
       {/* Map Container */}
-      <div className="w-full h-full relative" style={{ minHeight: "520px" }}>
+      <div className="w-full flex-grow relative" style={{ minHeight: "480px" }}>
         <MapContainer 
           center={mapCenter} 
           zoom={defaultZoom} 

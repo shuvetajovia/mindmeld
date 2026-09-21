@@ -683,18 +683,24 @@ export const NERSimulationPage: React.FC = () => {
         
         {/* 3D MOUNTAIN SLOPE PHYSICS CANVAS */}
         {(viewLayout === 'dual' || viewLayout === '3d-only') && (
-          <div className="bg-bgCard border border-borderColor rounded-3xl p-4 shadow-xl flex flex-col relative h-[540px] overflow-hidden">
-            <div className="absolute top-6 left-6 z-10 flex items-center gap-2">
-              <span className="px-3 py-1 bg-bgCard/90 border border-borderColor backdrop-blur-md rounded-xl text-[10px] font-black uppercase text-textPrimary shadow-sm flex items-center gap-1.5">
-                <Mountain className="w-3.5 h-3.5 text-blue-600" />
-                3D Digital Slope Physics Twin
-              </span>
-              <span className="px-2.5 py-1 bg-bgCard/90 border border-borderColor backdrop-blur-md rounded-xl text-[9px] font-bold text-textSecondary shadow-sm">
-                Orbit / Pan / Zoom Enabled
+          <div className="bg-bgCard border border-borderColor rounded-3xl p-5 shadow-xl flex flex-col h-[560px]">
+            {/* 3D External Header Toolbar */}
+            <div className="flex items-center justify-between border-b border-borderColor pb-3 mb-3 shrink-0">
+              <div className="flex items-center gap-2">
+                <span className="p-1.5 bg-blue-500/10 text-blue-600 dark:text-blue-400 rounded-lg text-xs font-black uppercase flex items-center gap-1.5 border border-blue-500/20">
+                  <Mountain className="w-4 h-4" /> 3D Digital Slope Physics
+                </span>
+                <span className="text-xs font-bold text-textPrimary hidden sm:inline-block">
+                  Geotechnical Failure Twin
+                </span>
+              </div>
+              <span className="px-2.5 py-1 bg-bgPrimary border border-borderColor rounded-xl text-[10px] font-bold text-textMuted shadow-sm">
+                🖱️ Orbit / Pan / Zoom
               </span>
             </div>
 
-            <div className="w-full h-full rounded-2xl overflow-hidden bg-gradient-to-b from-slate-900 to-slate-950">
+            {/* 3D Canvas Container */}
+            <div className="w-full flex-grow rounded-2xl overflow-hidden bg-gradient-to-b from-slate-900 to-slate-950 relative">
               <Canvas camera={{ position: [0, 14, 22], fov: 45 }}>
                 <ambientLight intensity={0.8} />
                 <directionalLight position={[15, 25, 15]} intensity={1.5} castShadow />
@@ -715,42 +721,46 @@ export const NERSimulationPage: React.FC = () => {
 
         {/* 2D OFFICIAL INDIAN NER STRATEGIC COMMAND MAP */}
         {(viewLayout === 'dual' || viewLayout === '2d-only') && (
-          <div className="bg-bgCard border border-borderColor rounded-3xl p-4 shadow-xl flex flex-col relative h-[540px] overflow-hidden">
-            {/* Map Top Floating Controls */}
-            <div className="absolute top-6 left-6 z-[1000] flex flex-wrap items-center gap-2">
-              <span className="px-3.5 py-1.5 bg-bgCard border-2 border-borderColor rounded-xl text-[10px] font-black uppercase text-textPrimary shadow-md flex items-center gap-1.5">
-                <Compass className="w-3.5 h-3.5 text-emerald-600" />
-                Indian NER Strategic Geo-Grid
-              </span>
+          <div className="bg-bgCard border border-borderColor rounded-3xl p-5 shadow-xl flex flex-col h-[560px]">
+            {/* 2D External Header Toolbar */}
+            <div className="flex flex-wrap items-center justify-between border-b border-borderColor pb-3 mb-3 gap-2 shrink-0">
+              <div className="flex items-center gap-2">
+                <span className="p-1.5 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 rounded-lg text-xs font-black uppercase flex items-center gap-1.5 border border-emerald-500/20">
+                  <Compass className="w-4 h-4" /> Indian NER Geo-Grid
+                </span>
+                <span className="text-xs font-bold text-textPrimary hidden sm:inline-block">
+                  8-State Command Map
+                </span>
+              </div>
               
-              {/* Basemap Switcher */}
-              <div className="flex items-center bg-bgCard border-2 border-borderColor rounded-xl p-1 shadow-md gap-1">
+              {/* Basemap Switcher Outside Map */}
+              <div className="flex items-center bg-bgPrimary border border-borderColor rounded-xl p-1 gap-1 shadow-sm">
                 <button
                   onClick={() => setBasemap("dark")}
-                  className={`px-2.5 py-1 rounded-lg text-[10px] font-black uppercase transition-all ${
+                  className={`px-3 py-1 rounded-lg text-[10px] font-black uppercase transition-all ${
                     basemap === "dark" 
-                      ? "bg-blue-600 text-white shadow-sm font-black" 
-                      : "bg-bgPrimary text-textPrimary hover:bg-borderColor/40"
+                      ? "bg-blue-600 text-white shadow-sm" 
+                      : "text-textSecondary hover:text-textPrimary"
                   }`}
                 >
                   🌑 Dark
                 </button>
                 <button
                   onClick={() => setBasemap("satellite")}
-                  className={`px-2.5 py-1 rounded-lg text-[10px] font-black uppercase transition-all ${
+                  className={`px-3 py-1 rounded-lg text-[10px] font-black uppercase transition-all ${
                     basemap === "satellite" 
-                      ? "bg-blue-600 text-white shadow-sm font-black" 
-                      : "bg-bgPrimary text-textPrimary hover:bg-borderColor/40"
+                      ? "bg-blue-600 text-white shadow-sm" 
+                      : "text-textSecondary hover:text-textPrimary"
                   }`}
                 >
                   🛰️ Satellite
                 </button>
                 <button
                   onClick={() => setBasemap("topo")}
-                  className={`px-2.5 py-1 rounded-lg text-[10px] font-black uppercase transition-all ${
+                  className={`px-3 py-1 rounded-lg text-[10px] font-black uppercase transition-all ${
                     basemap === "topo" 
-                      ? "bg-blue-600 text-white shadow-sm font-black" 
-                      : "bg-bgPrimary text-textPrimary hover:bg-borderColor/40"
+                      ? "bg-blue-600 text-white shadow-sm" 
+                      : "text-textSecondary hover:text-textPrimary"
                   }`}
                 >
                   ⛰️ Topo
@@ -758,8 +768,8 @@ export const NERSimulationPage: React.FC = () => {
               </div>
             </div>
 
-            {/* Leaflet Map with Zero-Key Watermark-Free Tiles */}
-            <div className="w-full h-full rounded-2xl overflow-hidden relative">
+            {/* Leaflet Map Container */}
+            <div className="w-full flex-grow rounded-2xl overflow-hidden relative">
               <MapContainer
                 center={activeScenario.coordinates}
                 zoom={activeScenario.zoom}
