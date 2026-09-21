@@ -705,51 +705,69 @@ export const Dashboard: React.FC<DashboardProps> = ({ apiBaseUrl }) => {
               <div className="space-y-4">
                 
                 {/* 1. Risk Gauge Score Dial */}
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <RiskDial score={selectedSegmentDetail.forecast.risk_score} />
                   
                   {/* Geographic Stats Card */}
-                  <div className="glass-panel p-3.5 bg-bgPrimary rounded-2xl flex flex-col justify-center space-y-1.5 text-xs font-semibold">
-                    <div className="text-[9px] text-textMuted uppercase font-black border-b border-borderColor pb-1 mb-1">Terrain Geomorphics</div>
-                    <div className="flex justify-between">
-                      <span className="text-textSecondary">Slope Angle:</span>
-                      <span className="text-textPrimary font-bold">{selectedSegmentDetail.slope.toFixed(1)}°</span>
+                  <div className="p-4 bg-bgCard border border-borderColor rounded-2xl shadow-sm flex flex-col justify-center space-y-2 text-xs font-semibold">
+                    <div className="text-[10px] text-textMuted uppercase font-black border-b border-borderColor pb-1.5 mb-1 flex items-center justify-between">
+                      <span>Terrain Geomorphics</span>
+                      <span className="text-blue-600 font-bold">30m SRTM DEM</span>
                     </div>
-                    <div className="flex justify-between">
-                      <span className="text-textSecondary">Elevation MSL:</span>
-                      <span className="text-textPrimary font-bold">{selectedSegmentDetail.elevation} m</span>
+                    <div className="flex justify-between items-center">
+                      <span className="text-textSecondary font-bold">Slope Angle:</span>
+                      <span className="text-textPrimary font-black">{selectedSegmentDetail.slope.toFixed(1)}°</span>
                     </div>
-                    <div className="flex justify-between">
-                      <span className="text-textSecondary">Infra Distance:</span>
-                      <span className="text-textPrimary font-bold">{selectedSegmentDetail.dist} m</span>
+                    <div className="flex justify-between items-center">
+                      <span className="text-textSecondary font-bold">Elevation MSL:</span>
+                      <span className="text-textPrimary font-black">{selectedSegmentDetail.elevation} m</span>
                     </div>
-                    <div className="flex justify-between">
-                      <span className="text-textSecondary">Slope curvature:</span>
-                      <span className="text-textPrimary font-bold">{selectedSegmentDetail.curvature.toFixed(3)}</span>
+                    <div className="flex justify-between items-center">
+                      <span className="text-textSecondary font-bold">Infra Distance:</span>
+                      <span className="text-textPrimary font-black">{selectedSegmentDetail.dist} m</span>
+                    </div>
+                    <div className="flex justify-between items-center">
+                      <span className="text-textSecondary font-bold">Slope Curvature:</span>
+                      <span className="text-textPrimary font-black">{selectedSegmentDetail.curvature.toFixed(3)}</span>
                     </div>
                   </div>
                 </div>
 
                 {/* 2. SOP Action Protocol Card */}
-                <div className={`p-4 rounded-2xl border ${selectedSegmentDetail.sop.color} text-xs font-semibold`}>
+                <div className={`p-4 rounded-2xl border ${selectedSegmentDetail.sop.color} text-xs font-semibold shadow-sm`}>
                   <div className="flex items-center gap-1.5 uppercase font-black tracking-wider text-[10px] mb-1.5">
                     <AlertTriangle className="w-4 h-4 shrink-0" />
                     Action Protocol Card: {selectedSegmentDetail.sop.tier}
                   </div>
-                  <p className="text-textPrimary/90 leading-relaxed font-semibold">
+                  <p className="text-textPrimary font-bold leading-relaxed">
                     {selectedSegmentDetail.sop.text}
                   </p>
                 </div>
 
                 {/* 3. Hydrological metrics */}
-                <div className="p-4 bg-bgPrimary rounded-2xl border border-borderColor text-xs space-y-2">
-                  <div className="text-[9px] text-textMuted font-black uppercase tracking-wider border-b border-borderColor pb-1">Hydrological Metrics (In-Situ)</div>
+                <div className="p-4 bg-bgCard rounded-2xl border border-borderColor text-xs space-y-2.5 shadow-sm">
+                  <div className="text-[10px] text-textMuted font-black uppercase tracking-wider border-b border-borderColor pb-1.5 flex items-center justify-between">
+                    <span>Hydrological Metrics (In-Situ)</span>
+                    <span className="text-emerald-600 font-bold">Telemetry Live</span>
+                  </div>
                   
-                  <div className="grid grid-cols-2 gap-2 text-textSecondary font-semibold">
-                    <div>24h Rain Gauge: <strong className="text-textPrimary">{selectedSegmentDetail.telemetry.rain_24h_obs.toFixed(1)} mm</strong></div>
-                    <div>7-Day API Index: <strong className="text-textPrimary">{selectedSegmentDetail.telemetry.api_7d.toFixed(1)} mm</strong></div>
-                    <div>Soil Moisture VWC: <strong className="text-blue-600">{selectedSegmentDetail.telemetry.soil_moisture.toFixed(1)}%</strong></div>
-                    <div>Seasonal Anomaly: <strong className="text-textPrimary">{selectedSegmentDetail.telemetry.r24_seasonal_anom.toFixed(1)} mm</strong></div>
+                  <div className="grid grid-cols-2 gap-3 text-textSecondary font-semibold">
+                    <div className="p-2 bg-bgPrimary rounded-xl border border-borderColor">
+                      <div className="text-[9px] text-textMuted uppercase font-bold">24h Rain Gauge</div>
+                      <div className="text-xs font-black text-textPrimary">{selectedSegmentDetail.telemetry.rain_24h_obs.toFixed(1)} mm</div>
+                    </div>
+                    <div className="p-2 bg-bgPrimary rounded-xl border border-borderColor">
+                      <div className="text-[9px] text-textMuted uppercase font-bold">7-Day API Index</div>
+                      <div className="text-xs font-black text-textPrimary">{selectedSegmentDetail.telemetry.api_7d.toFixed(1)} mm</div>
+                    </div>
+                    <div className="p-2 bg-bgPrimary rounded-xl border border-borderColor">
+                      <div className="text-[9px] text-textMuted uppercase font-bold">Soil Moisture VWC</div>
+                      <div className="text-xs font-black text-blue-600 dark:text-blue-400">{selectedSegmentDetail.telemetry.soil_moisture.toFixed(1)}%</div>
+                    </div>
+                    <div className="p-2 bg-bgPrimary rounded-xl border border-borderColor">
+                      <div className="text-[9px] text-textMuted uppercase font-bold">Seasonal Anomaly</div>
+                      <div className="text-xs font-black text-textPrimary">{selectedSegmentDetail.telemetry.r24_seasonal_anom.toFixed(1)} mm</div>
+                    </div>
                   </div>
                 </div>
 

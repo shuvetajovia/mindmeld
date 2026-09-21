@@ -125,15 +125,15 @@ export const GISMap: React.FC<GISMapProps> = ({
     <div className="w-full h-full relative rounded-2xl overflow-hidden border border-borderColor shadow-2xl min-h-[520px] flex flex-col bg-bgCard">
       
       {/* Floating Basemap & Overlay Bar (Top Center Overlay) */}
-      <div className="absolute top-3 left-1/2 transform -translate-x-1/2 z-[1000] flex flex-wrap items-center bg-bgCard/95 border border-borderColor rounded-xl p-1 shadow-lg backdrop-blur-md gap-1 max-w-[95%] sm:max-w-max justify-center">
+      <div className="absolute top-3 left-1/2 transform -translate-x-1/2 z-[1000] flex flex-wrap items-center bg-bgCard border-2 border-borderColor rounded-2xl p-1.5 shadow-2xl backdrop-blur-md gap-1.5 max-w-[95%] sm:max-w-max justify-center">
         {/* Basemap Switcher */}
-        <div className="flex items-center gap-0.5 pr-1.5 border-r border-borderColor/60">
+        <div className="flex items-center gap-1 pr-1.5 border-r border-borderColor">
           <button
             onClick={() => setBasemap("dark")}
-            className={`px-2.5 py-1.5 rounded-lg text-[9px] font-black uppercase transition tracking-wider flex items-center gap-1 ${
+            className={`px-3 py-1.5 rounded-xl text-[10px] font-black uppercase transition-all tracking-wider flex items-center gap-1.5 ${
               basemap === "dark"
-                ? "bg-blue-600 text-white shadow-sm"
-                : "text-textSecondary hover:text-textPrimary"
+                ? "bg-blue-600 text-white shadow-md shadow-blue-600/30 scale-105"
+                : "bg-bgPrimary text-textPrimary hover:bg-borderColor/40 border border-borderColor/60"
             }`}
             title="Tactical Dark Gray Map"
           >
@@ -141,10 +141,10 @@ export const GISMap: React.FC<GISMapProps> = ({
           </button>
           <button
             onClick={() => setBasemap("satellite")}
-            className={`px-2.5 py-1.5 rounded-lg text-[9px] font-black uppercase transition tracking-wider flex items-center gap-1 ${
+            className={`px-3 py-1.5 rounded-xl text-[10px] font-black uppercase transition-all tracking-wider flex items-center gap-1.5 ${
               basemap === "satellite"
-                ? "bg-blue-600 text-white shadow-sm"
-                : "text-textSecondary hover:text-textPrimary"
+                ? "bg-blue-600 text-white shadow-md shadow-blue-600/30 scale-105"
+                : "bg-bgPrimary text-textPrimary hover:bg-borderColor/40 border border-borderColor/60"
             }`}
             title="High-Res Satellite Imagery"
           >
@@ -152,10 +152,10 @@ export const GISMap: React.FC<GISMapProps> = ({
           </button>
           <button
             onClick={() => setBasemap("topo")}
-            className={`px-2.5 py-1.5 rounded-lg text-[9px] font-black uppercase transition tracking-wider flex items-center gap-1 ${
+            className={`px-3 py-1.5 rounded-xl text-[10px] font-black uppercase transition-all tracking-wider flex items-center gap-1.5 ${
               basemap === "topo"
-                ? "bg-blue-600 text-white shadow-sm"
-                : "text-textSecondary hover:text-textPrimary"
+                ? "bg-blue-600 text-white shadow-md shadow-blue-600/30 scale-105"
+                : "bg-bgPrimary text-textPrimary hover:bg-borderColor/40 border border-borderColor/60"
             }`}
             title="Topographic Elevation Map"
           >
@@ -163,10 +163,10 @@ export const GISMap: React.FC<GISMapProps> = ({
           </button>
           <button
             onClick={() => setBasemap("osm")}
-            className={`px-2.5 py-1.5 rounded-lg text-[9px] font-black uppercase transition tracking-wider flex items-center gap-1 ${
+            className={`px-3 py-1.5 rounded-xl text-[10px] font-black uppercase transition-all tracking-wider flex items-center gap-1.5 ${
               basemap === "osm"
-                ? "bg-blue-600 text-white shadow-sm"
-                : "text-textSecondary hover:text-textPrimary"
+                ? "bg-blue-600 text-white shadow-md shadow-blue-600/30 scale-105"
+                : "bg-bgPrimary text-textPrimary hover:bg-borderColor/40 border border-borderColor/60"
             }`}
             title="OpenStreetMap Standard"
           >
@@ -175,23 +175,23 @@ export const GISMap: React.FC<GISMapProps> = ({
         </div>
 
         {/* Layer Toggles */}
-        <div className="flex items-center gap-0.5 pl-1">
+        <div className="flex items-center gap-1 pl-1">
           <button
             onClick={() => setShowRadar(!showRadar)}
-            className={`px-2.5 py-1.5 rounded-lg text-[9px] font-black uppercase transition tracking-wider flex items-center gap-1 ${
+            className={`px-3 py-1.5 rounded-xl text-[10px] font-black uppercase transition-all tracking-wider flex items-center gap-1.5 ${
               showRadar
-                ? "bg-indigo-600 text-white shadow-sm"
-                : "text-textSecondary hover:text-textPrimary"
+                ? "bg-indigo-600 text-white shadow-md shadow-indigo-600/30 scale-105"
+                : "bg-bgPrimary text-textPrimary hover:bg-borderColor/40 border border-borderColor/60"
             }`}
           >
             🌧️ Radar
           </button>
           <button
             onClick={() => setShowHazardZones(!showHazardZones)}
-            className={`px-2.5 py-1.5 rounded-lg text-[9px] font-black uppercase transition tracking-wider flex items-center gap-1 ${
+            className={`px-3 py-1.5 rounded-xl text-[10px] font-black uppercase transition-all tracking-wider flex items-center gap-1.5 ${
               showHazardZones
-                ? "bg-amber-600 text-white shadow-sm"
-                : "text-textSecondary hover:text-textPrimary"
+                ? "bg-amber-600 text-white shadow-md shadow-amber-600/30 scale-105"
+                : "bg-bgPrimary text-textPrimary hover:bg-borderColor/40 border border-borderColor/60"
             }`}
           >
             ⚠️ Hazard Zones

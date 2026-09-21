@@ -717,37 +717,43 @@ export const NERSimulationPage: React.FC = () => {
         {(viewLayout === 'dual' || viewLayout === '2d-only') && (
           <div className="bg-bgCard border border-borderColor rounded-3xl p-4 shadow-xl flex flex-col relative h-[540px] overflow-hidden">
             {/* Map Top Floating Controls */}
-            <div className="absolute top-6 left-6 z-[1000] flex items-center gap-2">
-              <span className="px-3 py-1 bg-bgCard/90 border border-borderColor backdrop-blur-md rounded-xl text-[10px] font-black uppercase text-textPrimary shadow-sm flex items-center gap-1.5">
+            <div className="absolute top-6 left-6 z-[1000] flex flex-wrap items-center gap-2">
+              <span className="px-3.5 py-1.5 bg-bgCard border-2 border-borderColor rounded-xl text-[10px] font-black uppercase text-textPrimary shadow-md flex items-center gap-1.5">
                 <Compass className="w-3.5 h-3.5 text-emerald-600" />
                 Indian NER Strategic Geo-Grid
               </span>
               
               {/* Basemap Switcher */}
-              <div className="flex items-center bg-bgCard/90 border border-borderColor backdrop-blur-md rounded-xl p-0.5 shadow-sm">
+              <div className="flex items-center bg-bgCard border-2 border-borderColor rounded-xl p-1 shadow-md gap-1">
                 <button
                   onClick={() => setBasemap("dark")}
-                  className={`px-2 py-0.5 rounded-lg text-[9px] font-black uppercase transition ${
-                    basemap === "dark" ? "bg-blue-600 text-white" : "text-textSecondary hover:text-textPrimary"
+                  className={`px-2.5 py-1 rounded-lg text-[10px] font-black uppercase transition-all ${
+                    basemap === "dark" 
+                      ? "bg-blue-600 text-white shadow-sm font-black" 
+                      : "bg-bgPrimary text-textPrimary hover:bg-borderColor/40"
                   }`}
                 >
-                  Dark
+                  🌑 Dark
                 </button>
                 <button
                   onClick={() => setBasemap("satellite")}
-                  className={`px-2 py-0.5 rounded-lg text-[9px] font-black uppercase transition ${
-                    basemap === "satellite" ? "bg-blue-600 text-white" : "text-textSecondary hover:text-textPrimary"
+                  className={`px-2.5 py-1 rounded-lg text-[10px] font-black uppercase transition-all ${
+                    basemap === "satellite" 
+                      ? "bg-blue-600 text-white shadow-sm font-black" 
+                      : "bg-bgPrimary text-textPrimary hover:bg-borderColor/40"
                   }`}
                 >
-                  Satellite
+                  🛰️ Satellite
                 </button>
                 <button
                   onClick={() => setBasemap("topo")}
-                  className={`px-2 py-0.5 rounded-lg text-[9px] font-black uppercase transition ${
-                    basemap === "topo" ? "bg-blue-600 text-white" : "text-textSecondary hover:text-textPrimary"
+                  className={`px-2.5 py-1 rounded-lg text-[10px] font-black uppercase transition-all ${
+                    basemap === "topo" 
+                      ? "bg-blue-600 text-white shadow-sm font-black" 
+                      : "bg-bgPrimary text-textPrimary hover:bg-borderColor/40"
                   }`}
                 >
-                  Topo
+                  ⛰️ Topo
                 </button>
               </div>
             </div>
