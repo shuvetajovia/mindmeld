@@ -1,0 +1,8 @@
+feature,mean_abs_shap
+rain_48h_prior,0.85188895
+api_seasonal_anom,0.2922397
+rain_24h_obs,0.28414884
+r24_seasonal_anom,0.24268217
+rain_7d_prior,0.12033258
+rain_72h_prior,0.09568416
+api_7d,0.07005004
