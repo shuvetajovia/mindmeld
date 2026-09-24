@@ -183,7 +183,7 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
--- IoT Sensor Drift Simulation (Monsoon-aware telemetry push)
+-- IoT Sensor Drift Simulation (Physically bounded telemetry drift)
 CREATE OR REPLACE FUNCTION simulate_sensor_drift()
 RETURNS json AS $$
 DECLARE
@@ -194,28 +194,44 @@ BEGIN
     DECLARE
       rain_delta DOUBLE PRECISION;
       sm_delta   DOUBLE PRECISION;
-      api_delta  DOUBLE PRECISION;
+      is_extreme_zone BOOLEAN;
     BEGIN
-      rain_delta := CASE
-        WHEN random() > 0.75 THEN random() * 5.0          -- Rain spike
-        WHEN random() > 0.50 THEN -random() * 1.0         -- Slow drain
-        ELSE 0.0
-      END;
+      -- Check if station is in active extreme monsoon belt (Cherrapunji, Chungthang, Mangan)
+      is_extreme_zone := r.id IN ('SN-MEG-CHE-01', 'SN-MEG-MAW-01', 'SN-SKM-CHU-01', 'SN-SKM-MAN-01', 'SN-SKM-DZO-01');
 
-      sm_delta := (rain_delta * 0.35) + ((random() - 0.52) * 0.8);
-      api_delta := (rain_delta * 0.15) - (r.api_7d * 0.002);
+      IF is_extreme_zone THEN
+        -- High monsoon drift (oscillates around 120-180mm)
+        rain_delta := (random() - 0.48) * 1.5;
+        sm_delta   := (random() - 0.48) * 0.5;
+        
+        UPDATE sensor_nodes SET
+          rain_24h_obs      = GREATEST(90.0, LEAST(190.0, rain_24h_obs + rain_delta)),
+          rain_48h_prior    = GREATEST(120.0, LEAST(240.0, rain_48h_prior + rain_delta * 0.8)),
+          rain_72h_prior    = GREATEST(150.0, LEAST(280.0, rain_72h_prior + rain_delta * 0.6)),
+          rain_7d_prior     = GREATEST(320.0, LEAST(580.0, rain_7d_prior  + rain_delta * 0.4)),
+          api_7d            = GREATEST(220.0, LEAST(420.0, api_7d + rain_delta * 0.5)),
+          soil_moisture     = GREATEST(58.0,  LEAST(82.0, soil_moisture + sm_delta)),
+          r24_seasonal_anom = GREATEST(30.0, LEAST(85.0, (rain_24h_obs + rain_delta) - 65.0)),
+          api_seasonal_anom = GREATEST(60.0, LEAST(175.0, (api_7d + rain_delta * 0.5) - 180.0)),
+          last_updated      = NOW()
+        WHERE id = r.id;
+      ELSE
+        -- Nominal safe stations (oscillates gently around realistic calm/safe values: 25-60mm rain, 30-46% SM)
+        rain_delta := (random() - 0.50) * 0.6;
+        sm_delta   := (random() - 0.50) * 0.3;
 
-      UPDATE sensor_nodes SET
-        rain_24h_obs      = GREATEST(0.0, LEAST(350.0, rain_24h_obs + rain_delta)),
-        rain_48h_prior    = GREATEST(0.0, LEAST(500.0, rain_48h_prior + rain_delta * 0.6 + (random()-0.5)*0.5)),
-        rain_72h_prior    = GREATEST(0.0, LEAST(600.0, rain_72h_prior + rain_delta * 0.4 + (random()-0.5)*0.3)),
-        rain_7d_prior     = GREATEST(0.0, LEAST(900.0, rain_7d_prior  + rain_delta * 0.2 + (random()-0.5)*0.2)),
-        api_7d            = GREATEST(0.0, LEAST(350.0, api_7d + api_delta)),
-        soil_moisture     = GREATEST(5.0,  LEAST(95.0, soil_moisture + sm_delta)),
-        r24_seasonal_anom = (rain_24h_obs + rain_delta) - (60.0 + random() * 20.0),
-        api_seasonal_anom = (api_7d + api_delta) - (180.0 + random() * 40.0),
-        last_updated      = NOW()
-      WHERE id = r.id;
+        UPDATE sensor_nodes SET
+          rain_24h_obs      = GREATEST(15.0, LEAST(65.0, rain_24h_obs + rain_delta)),
+          rain_48h_prior    = GREATEST(25.0, LEAST(85.0, rain_48h_prior + rain_delta * 0.8)),
+          rain_72h_prior    = GREATEST(35.0, LEAST(115.0, rain_72h_prior + rain_delta * 0.6)),
+          rain_7d_prior     = GREATEST(90.0, LEAST(240.0, rain_7d_prior  + rain_delta * 0.4)),
+          api_7d            = GREATEST(60.0, LEAST(165.0, api_7d + rain_delta * 0.5)),
+          soil_moisture     = GREATEST(25.0, LEAST(46.0, soil_moisture + sm_delta)),
+          r24_seasonal_anom = GREATEST(-20.0, LEAST(18.0, (rain_24h_obs + rain_delta) - 45.0)),
+          api_seasonal_anom = GREATEST(-40.0, LEAST(35.0, (api_7d + rain_delta * 0.5) - 110.0)),
+          last_updated      = NOW()
+        WHERE id = r.id;
+      END IF;
     END;
   END LOOP;
 
@@ -224,7 +240,7 @@ BEGIN
   RETURN json_build_object(
     'updated', updated_count,
     'timestamp', NOW(),
-    'status', 'drift_applied'
+    'status', 'bounded_drift_applied'
   );
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
