@@ -14,6 +14,7 @@ import { computeSensorRisk } from "../lib/riskUtils";
 
 interface DashboardProps {
   apiBaseUrl: string;
+  onNavigateToRouting?: (params: { origin: string; destination: string; autoCalculate?: boolean }) => void;
 }
 
 interface DistrictCardMetadata {
@@ -84,7 +85,7 @@ const DISTRICT_BREAKDOWNS: DistrictCardMetadata[] = [
   { name: "Dhalai District (Hill Clusters)", stateKey: "TRIPURA", associatedSensorId: "SN-TPR-DHL-01", populationAtRisk: 12200, shelterName: "Dhalai Block Shelter", shelterStatus: "Standby" }
 ];
 
-export const Dashboard: React.FC<DashboardProps> = ({ apiBaseUrl }) => {
+export const Dashboard: React.FC<DashboardProps> = ({ apiBaseUrl, onNavigateToRouting }) => {
   const { sensors, corridors, alerts, loading, refresh } = useLiveTelemetry(apiBaseUrl, 15000);
   
   // Filtering state
@@ -95,9 +96,38 @@ export const Dashboard: React.FC<DashboardProps> = ({ apiBaseUrl }) => {
 
   // Selection states for inspector modal
   const [inspectorOpen, setInspectorOpen] = useState<boolean>(false);
-  const [isAlertDrawerOpen, setIsAlertDrawerOpen] = useState<boolean>(false);
+  const [isAlertDrawerOpen, setIsAlertDrawerOpen] = useState<boolean>(true);
   const [selectedSegmentDetail, setSelectedSegmentDetail] = useState<any>(null);
   const [selectedSensorDetail, setSelectedSensorDetail] = useState<SensorNodeData | null>(null);
+
+  // Detour routing navigator for alerts
+  const handleViewDetourOnMap = (alert: CAPAlertData) => {
+    if (!onNavigateToRouting) return;
+    const info = alert.info[0];
+    const text = `${info.headline || ""} ${info.event || ""} ${info.description || ""} ${info.area?.[0]?.areaDesc || ""}`.toLowerCase();
+
+    let origin = "Guwahati";
+    let destination = "Kohima";
+
+    if (text.includes("aizawl") || text.includes("serchhip") || text.includes("mizoram") || text.includes("lunglei")) {
+      origin = "Aizawl";
+      destination = "Serchhip";
+    } else if (text.includes("dima hasao") || text.includes("haflong") || text.includes("lumding")) {
+      origin = "Guwahati";
+      destination = "Haflong";
+    } else if (text.includes("sikkim") || text.includes("gangtok") || text.includes("nh-10") || text.includes("teesta") || text.includes("kalimpong")) {
+      origin = "Siliguri";
+      destination = "Gangtok";
+    } else if (text.includes("imphal") || text.includes("manipur") || text.includes("senapati")) {
+      origin = "Guwahati";
+      destination = "Imphal";
+    } else if (text.includes("kohima") || text.includes("nh-29") || text.includes("chumoukedima") || text.includes("nagaland")) {
+      origin = "Guwahati";
+      destination = "Kohima";
+    }
+
+    onNavigateToRouting({ origin, destination, autoCalculate: true });
+  };
 
   // Crowdsourced incidents
   const [citizenReports, setCitizenReports] = useState<any[]>([]);
@@ -457,8 +487,13 @@ export const Dashboard: React.FC<DashboardProps> = ({ apiBaseUrl }) => {
                               <div className="text-[10px] text-textSecondary mt-0.5 line-clamp-1">{info.description}</div>
                             </div>
                           </div>
-                          <button className="shrink-0 px-3 py-1.5 bg-bgPrimary border border-borderColor hover:bg-borderColor/30 text-textSecondary hover:text-textPrimary text-[9px] font-black uppercase rounded-lg transition">
-                            View Detour Route on Map ──►
+                          <button 
+                            onClick={() => handleViewDetourOnMap(alert)}
+                            className="shrink-0 px-3.5 py-1.5 bg-blue-600/10 hover:bg-blue-600 border border-blue-600/30 hover:border-blue-600 text-blue-500 hover:text-white text-[9px] font-black uppercase rounded-lg transition flex items-center gap-1.5 cursor-pointer shadow-sm active:scale-95"
+                            title="Open Safe Routing and compute detour bypass for this hazard"
+                          >
+                            <span>View Detour Route on Map</span>
+                            <span className="text-[11px]">──►</span>
                           </button>
                         </div>
                       )

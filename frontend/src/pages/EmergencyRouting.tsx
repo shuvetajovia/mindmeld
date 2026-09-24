@@ -8,9 +8,10 @@ import { AlertsBanner } from "../components/AlertsBanner";
 
 interface EmergencyRoutingProps {
   apiBaseUrl: string;
+  initialRouteParams?: { origin: string; destination: string; autoCalculate?: boolean } | null;
 }
 
-export const EmergencyRouting: React.FC<EmergencyRoutingProps> = ({ apiBaseUrl }) => {
+export const EmergencyRouting: React.FC<EmergencyRoutingProps> = ({ apiBaseUrl, initialRouteParams }) => {
   const { sensors, corridors, alerts } = useLiveTelemetry(apiBaseUrl, 15000);
   const [activeRoute, setActiveRoute] = useState<SafeRouteResponse | null>(null);
 
@@ -27,6 +28,9 @@ export const EmergencyRouting: React.FC<EmergencyRoutingProps> = ({ apiBaseUrl }
           <RoutePlanner 
             apiBaseUrl={apiBaseUrl} 
             corridors={corridors}
+            initialOrigin={initialRouteParams?.origin}
+            initialDestination={initialRouteParams?.destination}
+            autoCalculate={initialRouteParams?.autoCalculate ?? false}
             onRouteComputed={(route) => setActiveRoute(route)} 
           />
         </div>

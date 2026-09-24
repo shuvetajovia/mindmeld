@@ -113,6 +113,14 @@ function App() {
   } | null>(null);
   const [smsToast, setSmsToast] = useState<string | null>(null);
 
+  // Cross-page navigation routing parameters (e.g. from Command Center alert detours)
+  const [routingParams, setRoutingParams] = useState<{ origin: string; destination: string; autoCalculate?: boolean } | null>(null);
+
+  const handleNavigateToRouting = (params: { origin: string; destination: string; autoCalculate?: boolean }) => {
+    setRoutingParams(params);
+    setActiveTab("routing");
+  };
+
   // Live GPS Fetcher Function
   const requestLiveGPS = (currentProfile?: UserProfile): Promise<{ lat: number; lon: number } | null> => {
     return new Promise((resolve) => {
@@ -453,9 +461,9 @@ function App() {
       {/* ── MAIN CONTENT ────────────────────────────────────────────────── */}
       <main className="flex-grow">
         {activeTab === "overview"      && <ProjectOverview onLaunchGIS={() => setActiveTab("dashboard")} onLaunchPrediction={() => setActiveTab("prediction")} />}
-        {activeTab === "dashboard"     && <Dashboard apiBaseUrl={API_BASE_URL} />}
+        {activeTab === "dashboard"     && <Dashboard apiBaseUrl={API_BASE_URL} onNavigateToRouting={handleNavigateToRouting} />}
         {activeTab === "prediction"    && <PredictionCorePage apiBaseUrl={API_BASE_URL} />}
-        {activeTab === "routing"       && <EmergencyRouting apiBaseUrl={API_BASE_URL} />}
+        {activeTab === "routing"       && <EmergencyRouting apiBaseUrl={API_BASE_URL} initialRouteParams={routingParams} />}
         {activeTab === "iot"           && <IoTSensorPage apiBaseUrl={API_BASE_URL} />}
         {activeTab === "terrain3d"     && <TerrainAnalysisPage />}
         {activeTab === "reporting"     && <FieldReport apiBaseUrl={API_BASE_URL} />}

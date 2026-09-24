@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { Navigation, MapPin, Compass, ShieldAlert, ShieldCheck, Route, Zap } from "lucide-react";
 import { SafeRouteResponse } from "../types/routing";
 import { CorridorData } from "../hooks/useLiveTelemetry";
@@ -8,21 +8,30 @@ interface RoutePlannerProps {
   apiBaseUrl: string;
   corridors?: CorridorData[];
   onRouteComputed: (route: SafeRouteResponse) => void;
+  initialOrigin?: string;
+  initialDestination?: string;
+  autoCalculate?: boolean;
 }
 
 const CITIES = Object.keys(NER_CITIES);
 
-export const RoutePlanner: React.FC<RoutePlannerProps> = ({ apiBaseUrl, corridors = [], onRouteComputed }) => {
-  const [origin, setOrigin] = useState<string>("Guwahati");
-  const [destination, setDestination] = useState<string>("Kohima");
+export const RoutePlanner: React.FC<RoutePlannerProps> = ({ 
+  apiBaseUrl, 
+  corridors = [], 
+  onRouteComputed,
+  initialOrigin,
+  initialDestination,
+  autoCalculate
+}) => {
+  const [origin, setOrigin] = useState<string>(initialOrigin || "Guwahati");
+  const [destination, setDestination] = useState<string>(initialDestination || "Kohima");
   const [alpha, setAlpha] = useState<number>(1.2); // Default sensitivity
   const [loading, setLoading] = useState<boolean>(false);
   const [routeResult, setRouteResult] = useState<SafeRouteResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  const handleComputeRoute = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (origin === destination) {
+  const executeRouteCalculation = useCallback(async (origCity: string, destCity: string, sensitivity: number) => {
+    if (origCity === destCity) {
       setError("Origin and Destination cannot be the same junction point.");
       return;
     }
@@ -32,13 +41,13 @@ export const RoutePlanner: React.FC<RoutePlannerProps> = ({ apiBaseUrl, corridor
 
     try {
       // 1. Calculate authentic OpenStreetMap road highway geometry via OSRM
-      const osrmResult = await computeOSRMSafeRoute(origin, destination, alpha, corridors);
+      const osrmResult = await computeOSRMSafeRoute(origCity, destCity, sensitivity, corridors);
       setRouteResult(osrmResult);
       onRouteComputed(osrmResult);
     } catch (err: any) {
       console.warn("[RoutePlanner] OSRM routing failed, falling back to local solver:", err);
       try {
-        const fallback = await computeOSRMSafeRoute(origin, destination, alpha, corridors);
+        const fallback = await computeOSRMSafeRoute(origCity, destCity, sensitivity, corridors);
         setRouteResult(fallback);
         onRouteComputed(fallback);
       } catch (finalErr: any) {
@@ -47,6 +56,22 @@ export const RoutePlanner: React.FC<RoutePlannerProps> = ({ apiBaseUrl, corridor
     } finally {
       setLoading(false);
     }
+  }, [corridors, onRouteComputed]);
+
+  // Handle incoming route params from Command Center alert cards
+  useEffect(() => {
+    if (initialOrigin && initialDestination) {
+      setOrigin(initialOrigin);
+      setDestination(initialDestination);
+      if (autoCalculate) {
+        executeRouteCalculation(initialOrigin, initialDestination, alpha);
+      }
+    }
+  }, [initialOrigin, initialDestination, autoCalculate, executeRouteCalculation, alpha]);
+
+  const handleComputeRoute = async (e: React.FormEvent) => {
+    e.preventDefault();
+    await executeRouteCalculation(origin, destination, alpha);
   };
 
   return (

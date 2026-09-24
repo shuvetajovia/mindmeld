@@ -34,6 +34,8 @@ export const NER_CITIES: Record<string, GeoCity> = {
   "Haflong":    { name: "Haflong", lat: 25.1667, lon: 93.0300, state: "Assam" },
   "Chungthang": { name: "Chungthang", lat: 27.6042, lon: 88.6472, state: "Sikkim" },
   "Ukhrul":     { name: "Ukhrul", lat: 25.1167, lon: 94.4333, state: "Manipur" },
+  "Serchhip":   { name: "Serchhip", lat: 23.3000, lon: 92.8333, state: "Mizoram" },
+  "Lunglei":    { name: "Lunglei", lat: 22.8864, lon: 92.7483, state: "Mizoram" },
 };
 
 // Known hazard bypass waypoints for detour routing
@@ -53,6 +55,23 @@ const HAZARD_BYPASSES: Record<string, Record<string, { via: [number, number][]; 
       via: [[25.18, 93.02], [24.83, 92.78], [24.75, 93.30]], // via Dima Hasao / Silchar southern link
       reason: "Senapati feeder track vulnerable to rockfall (Hazard Level 7.5)",
       helpline: "Imphal Disaster Helpline: +91-385-2443441"
+    },
+    "Haflong": {
+      via: [[26.15, 92.00], [25.50, 92.50]], // Meghalaya-Jaintia bypass
+      reason: "Dima Hasao Lumding-Badarpur hill rail & road cut unstable from 195mm rains (Hazard Level 8.2)",
+      helpline: "Haflong Emergency Cell: +91-3673-236222 | Assam SEOC: 1070"
+    }
+  },
+  "Aizawl": {
+    "Serchhip": {
+      via: [[23.50, 92.95]], // via Thingsulthliah ridge bypass
+      reason: "Aizawl-Serchhip ridge road subsidence & mud accumulation (Hazard Level 8.5)",
+      helpline: "Mizoram Disaster Control: +91-389-2335837 | SEOC Aizawl: 1070"
+    },
+    "Lunglei": {
+      via: [[23.50, 92.95], [23.10, 92.85]],
+      reason: "NH-54 ridge road landslide blockage",
+      helpline: "Lunglei Disaster Cell: +91-372-2324004"
     }
   },
   "Siliguri": {
