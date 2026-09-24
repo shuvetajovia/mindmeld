@@ -1,10 +1,10 @@
 import React, { useState } from "react";
-import { Radio, RefreshCw, Activity, Cpu, Info, Zap } from "lucide-react";
+import { Radio, RefreshCw, Activity, Cpu, Info, Zap, ShieldCheck } from "lucide-react";
 import { useLiveTelemetry } from "../hooks/useLiveTelemetry";
 import { AlertsBanner } from "../components/AlertsBanner";
 import { TelemetryGraphs } from "../components/TelemetryGraphs";
 import { SensorCorrelationMatrix } from "../components/SensorCorrelationMatrix";
-import { computeSensorRisk } from "../lib/riskUtils";
+import { computeSensorRisk, summarizeRiskCounts } from "../lib/riskUtils";
 
 interface IoTSensorPageProps {
   apiBaseUrl: string;
@@ -12,7 +12,7 @@ interface IoTSensorPageProps {
 
 export const IoTSensorPage: React.FC<IoTSensorPageProps> = ({ apiBaseUrl }) => {
   const { sensors, alerts, loading, refresh } = useLiveTelemetry(apiBaseUrl, 10000);
-  const [selectedSensorId, setSelectedSensorId] = useState<string>("SN-NGL-KOH-01");
+  const [selectedSensorId, setSelectedSensorId] = useState<string>("SN-ASM-GUA-01");
   const [refreshCounter, setRefreshCounter] = useState<number>(0);
 
   const selectedSensor = sensors.find(s => s.id === selectedSensorId) || sensors[0] || null;
@@ -22,13 +22,16 @@ export const IoTSensorPage: React.FC<IoTSensorPageProps> = ({ apiBaseUrl }) => {
     refresh();
   };
 
+  // Network-wide risk breakdown
+  const riskSummary = summarizeRiskCounts(sensors);
+
   // Use shared risk engine — consistent with map and dashboard
   const alertStatus = selectedSensor
     ? (() => {
         const r = computeSensorRisk(selectedSensor);
-        return { label: r.label, color: r.tailwindText, bg: `${r.tailwindBg} ${r.tailwindBorder}` };
+        return { label: r.label, color: r.tailwindText, bg: `${r.tailwindBg} ${r.tailwindBorder}`, score: r.score };
       })()
-    : { label: "No Data", color: "text-textMuted", bg: "bg-bgPrimary" };
+    : { label: "No Data", color: "text-textMuted", bg: "bg-bgPrimary", score: 0 };
 
   // Group sensors by state for the dropdown
   const stateGroups: Record<string, typeof sensors> = {};
@@ -50,7 +53,7 @@ export const IoTSensorPage: React.FC<IoTSensorPageProps> = ({ apiBaseUrl }) => {
       <AlertsBanner alerts={alerts} />
 
       {/* Page Header + Station Selector */}
-      <div className="glass-panel rounded-2xl p-5 bg-bgCard border border-borderColor shadow-sm">
+      <div className="glass-panel rounded-2xl p-5 bg-bgCard border border-borderColor shadow-sm space-y-4">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-5">
           <div className="flex items-center gap-4">
             <div className="p-3 rounded-2xl bg-blue-600/10 text-blue-600 border border-blue-600/15 shadow-sm shrink-0">
@@ -67,27 +70,36 @@ export const IoTSensorPage: React.FC<IoTSensorPageProps> = ({ apiBaseUrl }) => {
           </div>
 
           <div className="flex items-center gap-3 flex-wrap">
-            {/* Alert Status Badge */}
-            <div className={`px-3 py-1.5 rounded-xl border text-[9px] font-black uppercase tracking-wider ${alertStatus.bg} ${alertStatus.color}`}>
-              {alertStatus.label}
-            </div>
-
             {/* Station Selector */}
             <div className="flex flex-col">
               <span className="text-[9px] font-bold text-textMuted uppercase mb-1">Select Monitoring Station</span>
               <select
                 value={selectedSensorId}
                 onChange={(e) => setSelectedSensorId(e.target.value)}
-                className="bg-bgPrimary border border-borderColor rounded-xl px-3 py-1.5 text-xs font-semibold text-textPrimary focus:outline-none focus:border-blue-600 min-w-[220px]"
+                className="bg-bgPrimary border border-borderColor rounded-xl px-3 py-1.5 text-xs font-semibold text-textPrimary focus:outline-none focus:border-blue-600 min-w-[240px]"
               >
                 {Object.entries(stateGroups).map(([code, nodes]) => (
                   <optgroup key={code} label={`── ${stateLabels[code] || code} (${nodes.length} nodes) ──`}>
-                    {nodes.map(s => (
-                      <option key={s.id} value={s.id}>{s.name}</option>
-                    ))}
+                    {nodes.map(s => {
+                      const r = computeSensorRisk(s);
+                      const icon = r.score >= 8.5 ? "🔴" : r.score >= 6.8 ? "🟠" : r.score >= 4.0 ? "🟡" : "🟢";
+                      return (
+                        <option key={s.id} value={s.id}>
+                          {icon} {s.name} ({r.shortLabel})
+                        </option>
+                      );
+                    })}
                   </optgroup>
                 ))}
               </select>
+            </div>
+
+            {/* Alert Status Badge */}
+            <div className="flex flex-col">
+              <span className="text-[9px] font-bold text-textMuted uppercase mb-1">Station Status</span>
+              <div className={`px-3 py-1.5 rounded-xl border text-[9px] font-black uppercase tracking-wider ${alertStatus.bg} ${alertStatus.color}`}>
+                {alertStatus.label}
+              </div>
             </div>
 
             <button
@@ -98,6 +110,33 @@ export const IoTSensorPage: React.FC<IoTSensorPageProps> = ({ apiBaseUrl }) => {
               <RefreshCw className={`w-3.5 h-3.5 ${loading ? "animate-spin" : ""}`} />
               Sync
             </button>
+          </div>
+        </div>
+
+        {/* Network-Wide Status Distribution Pill Bar */}
+        <div className="pt-3 border-t border-borderColor flex flex-wrap items-center justify-between gap-3 text-xs">
+          <div className="flex items-center gap-2">
+            <span className="text-[9px] font-black uppercase text-textMuted tracking-wider">
+              Network Health Grid:
+            </span>
+          </div>
+          <div className="flex items-center flex-wrap gap-2">
+            <span className="px-2.5 py-1 rounded-lg text-[9px] font-black uppercase bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 flex items-center gap-1">
+              <span className="w-2 h-2 rounded-full bg-emerald-500 inline-block"></span>
+              {riskSummary.nominal} Safe (Nominal)
+            </span>
+            <span className="px-2.5 py-1 rounded-lg text-[9px] font-black uppercase bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20 flex items-center gap-1">
+              <span className="w-2 h-2 rounded-full bg-amber-500 inline-block"></span>
+              {riskSummary.caution} Caution
+            </span>
+            <span className="px-2.5 py-1 rounded-lg text-[9px] font-black uppercase bg-orange-500/10 text-orange-600 dark:text-orange-400 border border-orange-500/20 flex items-center gap-1">
+              <span className="w-2 h-2 rounded-full bg-orange-500 inline-block"></span>
+              {riskSummary.high} High Warning
+            </span>
+            <span className="px-2.5 py-1 rounded-lg text-[9px] font-black uppercase bg-red-500/10 text-red-600 dark:text-red-400 border border-red-500/20 flex items-center gap-1 animate-pulse-slow">
+              <span className="w-2 h-2 rounded-full bg-red-500 inline-block"></span>
+              {riskSummary.critical} Critical Alert
+            </span>
           </div>
         </div>
 

@@ -26,6 +26,7 @@ export const EmergencyRouting: React.FC<EmergencyRoutingProps> = ({ apiBaseUrl }
         <div className="lg:col-span-1 flex flex-col h-full">
           <RoutePlanner 
             apiBaseUrl={apiBaseUrl} 
+            corridors={corridors}
             onRouteComputed={(route) => setActiveRoute(route)} 
           />
         </div>

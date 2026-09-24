@@ -45,21 +45,22 @@ export function computeSensorRisk(s: SensorNodeData): RiskResult {
   let score: number, label: string, shortLabel: string;
   let color: string, tailwindText: string, tailwindBg: string, tailwindBorder: string, isPulsing: boolean;
 
-  // Categorize based on fused probability and physical trigger thresholds
-  if (rain >= 130 || SM >= 60 || fusedProb >= 0.75) {
+  // Physical trigger & probabilistic thresholds aligned with GSI & IMD standards
+  // CRITICAL: Extreme rain (>=140mm) OR saturation (>=60% with rain >=120mm) OR high probability (>=0.85)
+  if ((rain >= 140 && fusedProb >= 0.70) || (SM >= 60 && rain >= 120) || fusedProb >= 0.85) {
     score = Math.min(10.0, 8.5 + (fusedProb * 1.5));
     label = "CRITICAL RED"; shortLabel = "CRITICAL"; color = "#EF4444";
     tailwindText = "text-alertRed"; tailwindBg = "bg-alertRed/10"; tailwindBorder = "border-alertRed/35"; isPulsing = true;
-  } else if (rain >= 75 || SM >= 48 || fusedProb >= 0.50) {
+  } else if ((rain >= 80 && fusedProb >= 0.45) || (SM >= 46 && rain >= 70) || fusedProb >= 0.65) {
     score = Math.min(8.4, 6.8 + (fusedProb * 1.6));
     label = "HIGH ORANGE"; shortLabel = "HIGH"; color = "#F97316";
     tailwindText = "text-alertOrange"; tailwindBg = "bg-alertOrange/10"; tailwindBorder = "border-alertOrange/25"; isPulsing = false;
-  } else if (rain >= 35 || SM >= 38 || fusedProb >= 0.28) {
+  } else if (rain >= 35 || SM >= 36 || fusedProb >= 0.30) {
     score = Math.min(6.5, 4.0 + (fusedProb * 2.5));
     label = "CAUTION YELLOW"; shortLabel = "CAUTION"; color = "#F59E0B";
     tailwindText = "text-alertYellow"; tailwindBg = "bg-alertYellow/10"; tailwindBorder = "border-alertYellow/25"; isPulsing = false;
   } else {
-    score = Math.max(1.0, (fusedProb * 3.5));
+    score = Math.max(1.0, (fusedProb * 3.0));
     label = "SAFE GREEN"; shortLabel = "NOMINAL"; color = "#10B981";
     tailwindText = "text-alertGreen"; tailwindBg = "bg-alertGreen/10"; tailwindBorder = "border-alertGreen/20"; isPulsing = false;
   }

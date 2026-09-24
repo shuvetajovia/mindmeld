@@ -164,14 +164,19 @@ function computeDynamicCorridors(baseCorridors: CorridorData[], sensorList: Sens
   });
 }
 
+// Global shared state across hooks to prevent duplicate fetches & flash of empty content
+let globalSensors: SensorNodeData[] = [];
+let globalCorridors: CorridorData[] = [];
+let globalAlerts: CAPAlertData[] = [];
+
 export function useLiveTelemetry(
   apiBaseUrl: string,
   refreshIntervalMs: number = 30000
 ) {
-  const [sensors, setSensors] = useState<SensorNodeData[]>([]);
-  const [corridors, setCorridors] = useState<CorridorData[]>([]);
-  const [alerts, setAlerts] = useState<CAPAlertData[]>([]);
-  const [loading, setLoading] = useState<boolean>(true);
+  const [sensors, setSensors] = useState<SensorNodeData[]>(() => globalSensors);
+  const [corridors, setCorridors] = useState<CorridorData[]>(() => globalCorridors);
+  const [alerts, setAlerts] = useState<CAPAlertData[]>(() => globalAlerts);
+  const [loading, setLoading] = useState<boolean>(() => globalSensors.length === 0);
   const [error, setError] = useState<string | null>(null);
   const [isOfflineFallback, setIsOfflineFallback] = useState<boolean>(false);
   const realtimeChannelRef = useRef<ReturnType<NonNullable<typeof supabase>["channel"]> | null>(null);
@@ -212,6 +217,10 @@ export function useLiveTelemetry(
       const baseCorridors = mockApi.getCorridors();
       const dynamicCorridors = computeDynamicCorridors(baseCorridors, liveSensors);
 
+      globalSensors = liveSensors;
+      globalCorridors = dynamicCorridors;
+      globalAlerts = activeAlerts;
+
       setSensors(liveSensors);
       setCorridors(dynamicCorridors);
       setAlerts(activeAlerts);
@@ -219,29 +228,19 @@ export function useLiveTelemetry(
       setError(null);
       setLoading(false);
     } catch (err: any) {
-      console.warn("[useLiveTelemetry] Live fetch fallback notice:", err?.message);
+      console.warn("[useLiveTelemetry] Fallback notice:", err?.message);
       
-      // Fallback: fetch from Supabase if live weather failed
-      if (supabase && isSupabaseConfigured) {
-        try {
-          const { data: sensorRows } = await supabase.from("sensor_nodes").select("*").order("id");
-          if (sensorRows && sensorRows.length > 0) {
-            const mapped = (sensorRows as SupabaseSensorRow[]).map(mapSensorRow);
-            const dynamicCorridors = computeDynamicCorridors(mockApi.getCorridors(), mapped);
-            setSensors(mapped);
-            setCorridors(dynamicCorridors);
-            setAlerts(mockApi.getActiveAlerts());
-            setIsOfflineFallback(false);
-            setLoading(false);
-            return;
-          }
-        } catch (_) {}
-      }
-
       const fallbackSensors = mockApi.getSensors();
+      const fallbackCorridors = computeDynamicCorridors(mockApi.getCorridors(), fallbackSensors);
+      const fallbackAlerts = mockApi.getActiveAlerts();
+
+      globalSensors = fallbackSensors;
+      globalCorridors = fallbackCorridors;
+      globalAlerts = fallbackAlerts;
+
       setSensors(fallbackSensors);
-      setCorridors(computeDynamicCorridors(mockApi.getCorridors(), fallbackSensors));
-      setAlerts(mockApi.getActiveAlerts());
+      setCorridors(fallbackCorridors);
+      setAlerts(fallbackAlerts);
       setIsOfflineFallback(true);
       setLoading(false);
     }

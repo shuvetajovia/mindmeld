@@ -98,14 +98,14 @@ export const TerrainAnalysisPage: React.FC = () => {
           <div>
             <div className="flex items-center gap-2">
               <h2 className="text-base font-extrabold text-textPrimary tracking-tight">
-                3D Digital Twin GIS & Risk Elevation Grid
+                3D Northeast India (NER) Digital Twin GIS
               </h2>
               <span className="text-[10px] font-black uppercase px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
-                Live 40-Node Grid
+                Live {sensors.length}-Station Grid
               </span>
             </div>
             <p className="text-[11px] font-semibold text-textSecondary">
-              Real-time In-Situ Geotechnical Telemetry & AI Hazard Threat Topography
+              Regional Topographic Relief of Northeast India (Survey of India datum) • Dynamic In-Situ Telemetry
             </p>
           </div>
         </div>

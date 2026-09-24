@@ -1,9 +1,26 @@
-import React, { useState } from "react";
-import { MapContainer, TileLayer, WMSTileLayer, Polyline, CircleMarker, Popup, Marker, Polygon } from "react-leaflet";
+import React, { useState, useEffect } from "react";
+import { MapContainer, TileLayer, WMSTileLayer, Polyline, CircleMarker, Popup, Marker, Polygon, useMap } from "react-leaflet";
 import L from "leaflet";
 import { CorridorData, SensorNodeData } from "../hooks/useLiveTelemetry";
 import { SafeRouteResponse } from "../types/routing";
 import { computeSensorRisk } from "../lib/riskUtils";
+
+// Helper component to smoothly zoom & fit map bounds to active OpenStreetMap route
+const RouteBoundsAdjuster: React.FC<{ activeRoute: SafeRouteResponse | null }> = ({ activeRoute }) => {
+  const map = useMap();
+  useEffect(() => {
+    if (activeRoute && activeRoute.waypoints && activeRoute.waypoints.length > 0) {
+      try {
+        const bounds = L.latLngBounds(activeRoute.waypoints);
+        if (activeRoute.blocked_waypoints && activeRoute.blocked_waypoints.length > 0) {
+          bounds.extend(L.latLngBounds(activeRoute.blocked_waypoints));
+        }
+        map.fitBounds(bounds, { padding: [50, 50], maxZoom: 12 });
+      } catch (_) {}
+    }
+  }, [activeRoute, map]);
+  return null;
+};
 
 // Overrides default Leaflet marker assets hash resolution in React SPA build contexts
 delete (L.Icon.Default.prototype as any)._getIconUrl;
@@ -215,6 +232,9 @@ export const GISMap: React.FC<GISMapProps> = ({
           scrollWheelZoom={true} 
           className="w-full h-full"
         >
+          {/* Automatic Route Bounds Adjuster when Safe Route is active */}
+          <RouteBoundsAdjuster activeRoute={activeRoute} />
+
           {/* Watermark-Free High-Performance Basemaps */}
           {basemap === "dark" && (
             <TileLayer
@@ -346,7 +366,7 @@ export const GISMap: React.FC<GISMapProps> = ({
             })
           )}
 
-          {/* Draw Alternate Detour Safe Routing paths */}
+          {/* Draw Alternate Detour Safe Routing paths from OpenStreetMap */}
           {activeRoute && activeRoute.waypoints && activeRoute.waypoints.length > 0 && (
             <>
               {activeRoute.alternative_available && activeRoute.blocked_waypoints && (
@@ -358,7 +378,15 @@ export const GISMap: React.FC<GISMapProps> = ({
                     dashArray: "8, 8",
                     opacity: 0.85,
                   }}
-                />
+                >
+                  <Popup>
+                    <div className="font-sans text-xs p-1 bg-bgCard">
+                      <span className="font-black text-alertRed block uppercase text-[9px] mb-0.5">⚠️ Primary Highway Path</span>
+                      <strong className="text-textPrimary block text-xs">High Landslide Risk Corridor</strong>
+                      <p className="text-[10px] text-textSecondary mt-0.5">Active landslide risk detected along standard corridor. Traffic detoured to safety.</p>
+                    </div>
+                  </Popup>
+                </Polyline>
               )}
 
               <Polyline
@@ -368,7 +396,19 @@ export const GISMap: React.FC<GISMapProps> = ({
                   weight: 6,
                   opacity: 0.95,
                 }}
-              />
+              >
+                <Popup>
+                  <div className="font-sans text-xs p-1 bg-bgCard">
+                    <span className="font-black text-alertGreen block uppercase text-[9px] mb-0.5">🛣️ Verified Safe Road Route</span>
+                    <strong className="text-textPrimary block text-xs">{activeRoute.origin} ➔ {activeRoute.destination}</strong>
+                    <div className="text-[10px] text-textSecondary mt-1 space-y-0.5">
+                      <div>Total Distance: <strong className="text-textPrimary">{activeRoute.total_distance_km} km</strong></div>
+                      <div>Average Risk: <strong className="text-alertGreen">{activeRoute.average_risk.toFixed(1)}/10</strong></div>
+                      <div className="text-[9px] text-blue-500 font-semibold mt-1">OpenStreetMap (OSRM) Road Routing Active</div>
+                    </div>
+                  </div>
+                </Popup>
+              </Polyline>
 
               <Marker position={activeRoute.waypoints[0]} icon={greenIcon}>
                 <Popup>

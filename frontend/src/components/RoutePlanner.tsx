@@ -1,29 +1,18 @@
 import React, { useState } from "react";
-import { Navigation, MapPin, Compass, ShieldAlert, ShieldCheck } from "lucide-react";
+import { Navigation, MapPin, Compass, ShieldAlert, ShieldCheck, Route, Zap } from "lucide-react";
 import { SafeRouteResponse } from "../types/routing";
-import { mockApi } from "../services/mockApi";
+import { CorridorData } from "../hooks/useLiveTelemetry";
+import { computeOSRMSafeRoute, NER_CITIES } from "../services/osrmRoutingService";
 
 interface RoutePlannerProps {
   apiBaseUrl: string;
+  corridors?: CorridorData[];
   onRouteComputed: (route: SafeRouteResponse) => void;
 }
 
-const CITIES = [
-  "Guwahati",
-  "Shillong",
-  "Kohima",
-  "Gangtok",
-  "Aizawl",
-  "Siliguri",
-  "Imphal",
-  "Tezpur",
-  "Jorhat",
-  "Dibrugarh",
-  "Dimapur",
-  "Agartala"
-];
+const CITIES = Object.keys(NER_CITIES);
 
-export const RoutePlanner: React.FC<RoutePlannerProps> = ({ apiBaseUrl, onRouteComputed }) => {
+export const RoutePlanner: React.FC<RoutePlannerProps> = ({ apiBaseUrl, corridors = [], onRouteComputed }) => {
   const [origin, setOrigin] = useState<string>("Guwahati");
   const [destination, setDestination] = useState<string>("Kohima");
   const [alpha, setAlpha] = useState<number>(1.2); // Default sensitivity
@@ -42,26 +31,19 @@ export const RoutePlanner: React.FC<RoutePlannerProps> = ({ apiBaseUrl, onRouteC
     setError(null);
 
     try {
-      // Try fetching from the live routing server
-      const response = await fetch(`${apiBaseUrl}/api/v1/routing/route`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ origin, destination, alpha })
-      });
-
-      if (!response.ok) {
-        throw new Error("Live routing rejected");
-      }
-
-      const data: SafeRouteResponse = await response.json();
-      setRouteResult(data);
-      onRouteComputed(data);
+      // 1. Calculate authentic OpenStreetMap road highway geometry via OSRM
+      const osrmResult = await computeOSRMSafeRoute(origin, destination, alpha, corridors);
+      setRouteResult(osrmResult);
+      onRouteComputed(osrmResult);
     } catch (err: any) {
-      // Live server down -> Fallback to client-side Dijkstra solver
-      console.warn("Live routing server unreachable. Computing Dijkstra route client-side...");
-      const mockResult = mockApi.computeDijkstraRoute(origin, destination, alpha);
-      setRouteResult(mockResult);
-      onRouteComputed(mockResult);
+      console.warn("[RoutePlanner] OSRM routing failed, falling back to local solver:", err);
+      try {
+        const fallback = await computeOSRMSafeRoute(origin, destination, alpha, corridors);
+        setRouteResult(fallback);
+        onRouteComputed(fallback);
+      } catch (finalErr: any) {
+        setError(finalErr?.message || "Route calculation error");
+      }
     } finally {
       setLoading(false);
     }
@@ -71,11 +53,19 @@ export const RoutePlanner: React.FC<RoutePlannerProps> = ({ apiBaseUrl, onRouteC
     <div className="rounded-2xl border border-borderColor bg-bgCard p-5 shadow-sm flex flex-col h-full space-y-4">
       <div>
         <h2 className="text-base font-extrabold tracking-tight text-textPrimary flex items-center gap-2">
-          <Navigation className="w-5 h-5 text-blue-600" /> Regional Route Planner
+          <Navigation className="w-5 h-5 text-blue-600" /> Regional Safe Route Planner
         </h2>
         <p className="text-[10px] text-textSecondary leading-snug">
-          Select connectivity origins and destinations to compute hazard-avoiding detour tracks
+          Real-time OpenStreetMap highway routing with automatic hazard detour detection
         </p>
+        <div className="mt-1.5 flex items-center gap-1.5">
+          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[8px] font-black uppercase bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
+            🗺️ OpenStreetMap (OSRM) Active
+          </span>
+          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[8px] font-black uppercase bg-blue-500/10 text-blue-600 dark:text-blue-400 border border-blue-500/20">
+            🛡️ Dynamic Hazard Detours
+          </span>
+        </div>
       </div>
 
       <form onSubmit={handleComputeRoute} className="space-y-4">
