@@ -52,3 +52,39 @@ export type SupabaseAlertRow = {
   instruction: string | null;
   area_desc: string;
 };
+
+export type SupabaseUserRow = {
+  id?: string;
+  name: string;
+  phone: string;
+  latitude: number;
+  longitude: number;
+  last_seen?: string;
+};
+
+/**
+ * Register or update an officer / user location in Supabase for proximity alerts
+ */
+export async function syncOfficerToSupabase(user: { name: string; phone: string; latitude: number; longitude: number }): Promise<boolean> {
+  if (!supabase || !isSupabaseConfigured) return false;
+  try {
+    const { error } = await supabase.from("app_users").insert([
+      {
+        name: user.name,
+        phone: user.phone,
+        latitude: user.latitude,
+        longitude: user.longitude,
+        last_seen: new Date().toISOString(),
+      },
+    ]);
+    if (error) {
+      console.warn("[Supabase] syncOfficerToSupabase notice:", error.message);
+      return false;
+    }
+    return true;
+  } catch (err: any) {
+    console.warn("[Supabase] syncOfficerToSupabase exception:", err?.message);
+    return false;
+  }
+}
+

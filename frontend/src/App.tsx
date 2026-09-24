@@ -10,10 +10,11 @@ import { TerrainAnalysisPage } from "./pages/TerrainAnalysisPage";
 import { NERSimulationPage } from "./pages/NERSimulationPage";
 import { ThemeToggle } from "./components/ThemeToggle";
 import { useLiveTelemetry } from "./hooks/useLiveTelemetry";
+import { syncOfficerToSupabase } from "./services/supabaseClient";
 import { mockApi } from "./services/mockApi";
 import { 
   LayoutDashboard, Compass, Radio, Cpu, Smartphone, Home,
-  AlertTriangle, Clock, User, RefreshCw, X, ShieldAlert, SmartphoneNfc, Mountain, Sparkles
+  AlertTriangle, Clock, User, RefreshCw, X, ShieldAlert, SmartphoneNfc, Mountain, Sparkles, CheckCircle2, ShieldCheck, MapPin
 } from "lucide-react";
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:8000";
@@ -23,7 +24,48 @@ interface UserProfile {
   phone: string;
   latitude: number;
   longitude: number;
+  role?: string;
+  badge?: string;
 }
+
+const OFFICER_PRESETS = [
+  {
+    role: "NDRF Sector Commander",
+    badge: "NDRF-01-NE",
+    name: "Commander A. K. Sangma",
+    phone: "9876543210",
+    lat: "25.6751",
+    lon: "94.1116",
+    sector: "Kohima - Imphal Highway Sector (Red Alert Proximity)",
+  },
+  {
+    role: "SDMA Incident Officer",
+    badge: "SDMA-MEG-04",
+    name: "Dr. B. Khongwir",
+    phone: "9862100451",
+    lat: "25.5788",
+    lon: "91.8933",
+    sector: "East Khasi Hills & Cherrapunji Sector",
+  },
+  {
+    role: "BRO Task Force Commander",
+    badge: "BRO-SWASTIK",
+    name: "Col. V. Sharma",
+    phone: "9434022819",
+    lat: "27.5088",
+    lon: "88.5338",
+    sector: "North Sikkim NH-10 / Mangan Corridor",
+  },
+  {
+    role: "GSI Chief Field Geologist",
+    badge: "GSI-NER-GEO",
+    name: "Dr. T. Jamir",
+    phone: "9436001284",
+    lat: "26.1445",
+    lon: "91.7362",
+    sector: "Guwahati Regional Disaster Hub",
+  }
+];
 
 // Haversine helper
 function computeDistance(lat1: number, lon1: number, lat2: number, lon2: number): number {
@@ -61,11 +103,20 @@ function App() {
 
   // Auth states
   const [loginModalOpen, setLoginModalOpen] = useState<boolean>(false);
-  const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
+  const [userProfile, setUserProfile] = useState<UserProfile | null>(() => {
+    try {
+      const saved = localStorage.getItem("mindmeld_officer_user");
+      return saved ? JSON.parse(saved) : null;
+    } catch {
+      return null;
+    }
+  });
+  const [activeLoginTab, setActiveLoginTab] = useState<"preset" | "custom">("preset");
   const [inputName, setInputName] = useState<string>("");
   const [inputPhone, setInputPhone] = useState<string>("");
   const [inputLat, setInputLat] = useState<string>("");
   const [inputLon, setInputLon] = useState<string>("");
+  const [isSyncing, setIsSyncing] = useState<boolean>(false);
 
   // Proximity Alert Banner States
   const [activeProximityAlert, setActiveProximityAlert] = useState<{
@@ -74,6 +125,32 @@ function App() {
     riskScore: number;
   } | null>(null);
   const [smsToast, setSmsToast] = useState<string | null>(null);
+
+  // Load / Sync profile
+  const saveAndApplyProfile = async (profile: UserProfile) => {
+    setUserProfile(profile);
+    localStorage.setItem("mindmeld_officer_user", JSON.stringify(profile));
+    setLoginModalOpen(false);
+    setIsSyncing(true);
+    await syncOfficerToSupabase({
+      name: profile.name,
+      phone: profile.phone,
+      latitude: profile.latitude,
+      longitude: profile.longitude,
+    });
+    setIsSyncing(false);
+    setSmsToast(`🛡️ Officer Verified: ${profile.name} registered with live GPS geofencing.`);
+    setTimeout(() => setSmsToast(null), 4000);
+  };
+
+  const handleLogout = () => {
+    localStorage.removeItem("mindmeld_officer_user");
+    setUserProfile(null);
+    setActiveProximityAlert(null);
+    setSmsToast("Officer session cleared.");
+    setTimeout(() => setSmsToast(null), 3000);
+  };
+
 
   // IST Clock
   useEffect(() => {
@@ -122,70 +199,18 @@ function App() {
     }
   };
 
-  const handleLoginSubmit = (e: React.FormEvent) => {
+  const handleCustomLoginSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!inputName || !inputPhone) return;
-    setUserProfile({
+    const profile: UserProfile = {
       name: inputName,
       phone: inputPhone,
       latitude: parseFloat(inputLat) || 26.1445,
-      longitude: parseFloat(inputLon) || 91.7362
-    });
-    setLoginModalOpen(false);
-  };
-
-  // Proximity alert computation using ML-based risk from sensor data
-  useEffect(() => {
-    if (!userProfile || sensors.length === 0) {
-      setActiveProximityAlert(null);
-      return;
-    }
-
-    let closestAlertNode: any = null;
-    let minDistance = Infinity;
-
-    sensors.forEach(node => {
-      const SM = node.soil_moisture;
-      const rain = node.rain_24h_obs;
-      const pore = Math.min(120, SM * 0.9);
-      const incl = Math.min(0.12, pore * 0.00055 + rain * 0.00025);
-      const tVal = 0.018 * rain + 0.005 * node.api_7d + 0.022 * pore + 20.0 * incl - 1.95;
-      const prob = 1 / (1 + Math.exp(-tVal)); // simplified T-only for proximity check
-      const risk = prob > 0.80 ? 9.2 : prob > 0.50 ? 7.5 : prob > 0.15 ? 5.2 : 2.0;
-
-      if (risk >= 7.0) {
-        const dist = computeDistance(userProfile.latitude, userProfile.longitude, node.latitude, node.longitude);
-        if (dist < minDistance) {
-          minDistance = dist;
-          closestAlertNode = {
-            distance: parseFloat(dist.toFixed(1)),
-            locationName: node.name,
-            riskScore: risk
-          };
-        }
-      }
-    });
-
-    if (closestAlertNode && minDistance <= 15.0) {
-      setActiveProximityAlert(closestAlertNode);
-    } else {
-      setActiveProximityAlert(null);
-    }
-  }, [userProfile, sensors]);
-
-  const simulateNearKohima = () => {
-    setInputName("Simulated Officer");
-    setInputPhone("9988776655");
-    setInputLat("25.6760");
-    setInputLon("94.1120");
-    setUserProfile({ name: "Simulated Officer", phone: "9988776655", latitude: 25.6760, longitude: 94.1120 });
-    setLoginModalOpen(false);
-  };
-
-  const triggerSmsSimulation = () => {
-    if (!userProfile || !activeProximityAlert) return;
-    setSmsToast(`📲 SMS ALERT TRANSMITTED: Warning dispatch sent to +91-${userProfile.phone}. Hazard zone at ${activeProximityAlert.locationName} is ${activeProximityAlert.distance} km away.`);
-    setTimeout(() => setSmsToast(null), 5000);
+      longitude: parseFloat(inputLon) || 91.7362,
+      role: "Field Response Officer",
+      badge: "DUTY-ACTIVE"
+    };
+    await saveAndApplyProfile(profile);
   };
 
   return (
@@ -242,12 +267,23 @@ function App() {
           <div className="hidden lg:block"><ThemeToggle /></div>
           {userProfile ? (
             <div className="flex items-center gap-2">
-              <span className="hidden md:inline-block text-[10px] font-black text-alertGreen bg-alertGreen/10 border border-alertGreen/20 px-3 py-1.5 rounded-xl">
-                👤 {userProfile.name}
-              </span>
+              <div className="flex items-center gap-2 bg-emerald-500/10 border border-emerald-500/25 px-3 py-1.5 rounded-xl">
+                <span className="relative flex h-2 w-2">
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                  <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+                </span>
+                <div className="text-left">
+                  <div className="text-[10px] font-black text-emerald-500 leading-none">
+                    {userProfile.name}
+                  </div>
+                  <div className="text-[8px] font-bold text-textMuted uppercase tracking-wider">
+                    {userProfile.role || "Officer Active"}
+                  </div>
+                </div>
+              </div>
               <button
-                onClick={() => setUserProfile(null)}
-                className="px-3 py-1.5 border border-borderColor bg-bgPrimary hover:bg-borderColor/40 text-textSecondary hover:text-textPrimary rounded-xl text-[10px] font-black uppercase transition"
+                onClick={handleLogout}
+                className="px-3 py-2 border border-borderColor bg-bgPrimary hover:bg-borderColor/40 text-textSecondary hover:text-textPrimary rounded-xl text-[10px] font-black uppercase transition"
               >
                 Logout
               </button>
@@ -255,9 +291,9 @@ function App() {
           ) : (
             <button
               onClick={() => { captureUserLocation(); setLoginModalOpen(true); }}
-              className="px-3.5 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-[10px] font-black uppercase transition shadow-md shadow-blue-500/10 flex items-center gap-1"
+              className="px-3.5 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-[10px] font-black uppercase transition shadow-md shadow-blue-500/10 flex items-center gap-1.5"
             >
-              <User className="w-3.5 h-3.5" /> Officer Login
+              <ShieldCheck className="w-3.5 h-3.5" /> Officer Login
             </button>
           )}
         </div>
@@ -270,7 +306,7 @@ function App() {
             <ShieldAlert className="w-5 h-5 animate-pulse shrink-0" />
             <div>
               <span className="font-black uppercase tracking-wider block text-[10px] text-alertRed mb-0.5">⚠️ URGENT AREA WARNING:</span>
-              You are currently <strong className="font-black font-mono">{activeProximityAlert.distance} km</strong> from an active Red Alert hazard zone at <strong className="underline">{activeProximityAlert.locationName}</strong>. Automated warning SMS queued to <strong className="font-mono">+91-{userProfile.phone}</strong>.
+              Officer <strong className="underline">{userProfile.name}</strong> is currently <strong className="font-black font-mono">{activeProximityAlert.distance} km</strong> from an active Red Alert hazard zone at <strong className="underline">{activeProximityAlert.locationName}</strong>. Automated warning SMS dispatched to <strong className="font-mono">+91-{userProfile.phone}</strong>.
             </div>
           </div>
           <button
@@ -289,7 +325,7 @@ function App() {
             <SmartphoneNfc className="w-5 h-5" />
           </div>
           <div>
-            <div className="text-[10px] font-black text-alertGreen uppercase tracking-wider">SMS TRANSMITTED OK</div>
+            <div className="text-[10px] font-black text-alertGreen uppercase tracking-wider">DISASTER OPS NOTIFICATION</div>
             <p className="text-xs text-textSecondary font-semibold mt-1 leading-normal">{smsToast}</p>
           </div>
         </div>
@@ -321,11 +357,20 @@ function App() {
       {/* ── OFFICER LOGIN MODAL ─────────────────────────────────────────── */}
       {loginModalOpen && (
         <div className="fixed inset-0 z-[99999] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fadeIn">
-          <div className="glass-panel bg-bgCard border border-borderColor rounded-3xl p-6 w-full max-w-md shadow-2xl space-y-4 animate-slideUp text-textPrimary">
+          <div className="glass-panel bg-bgCard border border-borderColor rounded-3xl p-6 w-full max-w-lg shadow-2xl space-y-4 animate-slideUp text-textPrimary">
             <div className="flex justify-between items-start border-b border-borderColor pb-3">
               <div>
-                <h3 className="font-black text-sm text-textPrimary uppercase">Disaster Management Officer Login</h3>
-                <p className="text-[9px] text-textSecondary">Input details to initialize automated proximity warnings</p>
+                <div className="flex items-center gap-2">
+                  <span className="p-1.5 bg-blue-600/10 text-blue-600 rounded-lg">
+                    <ShieldCheck className="w-4 h-4" />
+                  </span>
+                  <h3 className="font-black text-sm text-textPrimary uppercase tracking-wide">
+                    Disaster Management Officer Portal
+                  </h3>
+                </div>
+                <p className="text-[10px] text-textSecondary mt-0.5">
+                  Synchronize officer profile with Supabase DB for geofenced proximity alerting
+                </p>
               </div>
               <button onClick={() => setLoginModalOpen(false)}
                       className="p-1 rounded-lg border border-borderColor hover:bg-bgPrimary transition text-textSecondary hover:text-textPrimary">
@@ -333,47 +378,166 @@ function App() {
               </button>
             </div>
 
-            <form onSubmit={handleLoginSubmit} className="space-y-3 pt-1">
-              <div>
-                <label className="text-[9px] font-bold text-textMuted uppercase tracking-wider block mb-1">Full Name</label>
-                <input type="text" required placeholder="Officer / Citizen Name" value={inputName}
-                       onChange={(e) => setInputName(e.target.value)}
-                       className="w-full px-3 py-2 rounded-xl bg-bgPrimary border border-borderColor text-xs font-semibold text-textPrimary focus:outline-none focus:border-blue-600" />
-              </div>
+            {/* Toggle Login Method */}
+            <div className="flex bg-bgPrimary p-1 rounded-xl border border-borderColor gap-1 text-[10px] font-black uppercase">
+              <button
+                type="button"
+                onClick={() => setActiveLoginTab("preset")}
+                className={`flex-1 py-1.5 rounded-lg transition ${
+                  activeLoginTab === "preset"
+                    ? "bg-blue-600 text-white shadow-sm"
+                    : "text-textSecondary hover:text-textPrimary"
+                }`}
+              >
+                Official Duty Roster (1-Click)
+              </button>
+              <button
+                type="button"
+                onClick={() => setActiveLoginTab("custom")}
+                className={`flex-1 py-1.5 rounded-lg transition ${
+                  activeLoginTab === "custom"
+                    ? "bg-blue-600 text-white shadow-sm"
+                    : "text-textSecondary hover:text-textPrimary"
+                }`}
+              >
+                Custom Officer / GPS
+              </button>
+            </div>
 
-              <div>
-                <label className="text-[9px] font-bold text-textMuted uppercase tracking-wider block mb-1">Mobile Number (SMS warning)</label>
-                <input type="tel" required pattern="[0-9]{10}" placeholder="10-Digit Mobile Phone" value={inputPhone}
-                       onChange={(e) => setInputPhone(e.target.value)}
-                       className="w-full px-3 py-2 rounded-xl bg-bgPrimary border border-borderColor text-xs font-semibold text-textPrimary focus:outline-none focus:border-blue-600 font-mono" />
+            {activeLoginTab === "preset" ? (
+              <div className="space-y-2.5 pt-1 max-h-[320px] overflow-y-auto pr-1">
+                <p className="text-[10px] font-semibold text-textMuted">
+                  Select your active operational sector to initialize automatic proximity hazard telemetry:
+                </p>
+                {OFFICER_PRESETS.map((preset, idx) => (
+                  <div
+                    key={idx}
+                    onClick={() =>
+                      saveAndApplyProfile({
+                        name: preset.name,
+                        phone: preset.phone,
+                        latitude: parseFloat(preset.lat),
+                        longitude: parseFloat(preset.lon),
+                        role: preset.role,
+                        badge: preset.badge
+                      })
+                    }
+                    className="p-3 bg-bgPrimary hover:bg-blue-600/10 border border-borderColor hover:border-blue-500 rounded-2xl cursor-pointer transition flex items-center justify-between group"
+                  >
+                    <div className="space-y-0.5">
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs font-black text-textPrimary group-hover:text-blue-500">
+                          {preset.name}
+                        </span>
+                        <span className="px-1.5 py-0.5 rounded bg-blue-600/15 text-blue-500 font-mono text-[8px] font-bold">
+                          {preset.badge}
+                        </span>
+                      </div>
+                      <div className="text-[10px] font-semibold text-textSecondary">
+                        {preset.role} • <span className="font-mono">+91-{preset.phone}</span>
+                      </div>
+                      <div className="text-[9px] font-medium text-textMuted flex items-center gap-1">
+                        <MapPin className="w-2.5 h-2.5 text-blue-500" /> {preset.sector}
+                      </div>
+                    </div>
+                    <button className="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-[9px] font-black uppercase transition shrink-0">
+                      Login
+                    </button>
+                  </div>
+                ))}
               </div>
-
-              <div className="grid grid-cols-2 gap-3">
+            ) : (
+              <form onSubmit={handleCustomLoginSubmit} className="space-y-3 pt-1">
                 <div>
-                  <label className="text-[9px] font-bold text-textMuted uppercase tracking-wider block mb-1">Latitude</label>
-                  <input type="text" required placeholder="e.g. 26.1445" value={inputLat}
-                         onChange={(e) => setInputLat(e.target.value)}
-                         className="w-full px-3 py-2 rounded-xl bg-bgPrimary border border-borderColor text-xs font-semibold text-textPrimary focus:outline-none font-mono" />
+                  <label className="text-[9px] font-bold text-textMuted uppercase tracking-wider block mb-1">
+                    Officer / Responder Name
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    placeholder="e.g. Insp. Lalrintluanga (Mizoram DM)"
+                    value={inputName}
+                    onChange={(e) => setInputName(e.target.value)}
+                    className="w-full px-3 py-2 rounded-xl bg-bgPrimary border border-borderColor text-xs font-semibold text-textPrimary focus:outline-none focus:border-blue-600"
+                  />
                 </div>
-                <div>
-                  <label className="text-[9px] font-bold text-textMuted uppercase tracking-wider block mb-1">Longitude</label>
-                  <input type="text" required placeholder="e.g. 91.7362" value={inputLon}
-                         onChange={(e) => setInputLon(e.target.value)}
-                         className="w-full px-3 py-2 rounded-xl bg-bgPrimary border border-borderColor text-xs font-semibold text-textPrimary focus:outline-none font-mono" />
-                </div>
-              </div>
 
-              <div className="flex gap-2 pt-2">
-                <button type="button" onClick={simulateNearKohima}
-                        className="w-1/2 py-2 bg-bgPrimary hover:bg-borderColor/40 border border-borderColor text-[10px] font-black uppercase rounded-xl transition text-alertRed">
-                  Simulate near Red Zone
+                <div>
+                  <label className="text-[9px] font-bold text-textMuted uppercase tracking-wider block mb-1">
+                    Mobile Number (SMS warning channel)
+                  </label>
+                  <input
+                    type="tel"
+                    required
+                    pattern="[0-9]{10}"
+                    placeholder="10-Digit Mobile Phone"
+                    value={inputPhone}
+                    onChange={(e) => setInputPhone(e.target.value)}
+                    className="w-full px-3 py-2 rounded-xl bg-bgPrimary border border-borderColor text-xs font-semibold text-textPrimary focus:outline-none focus:border-blue-600 font-mono"
+                  />
+                </div>
+
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="text-[9px] font-bold text-textMuted uppercase tracking-wider block mb-1">
+                      Latitude
+                    </label>
+                    <input
+                      type="text"
+                      required
+                      placeholder="e.g. 25.6760"
+                      value={inputLat}
+                      onChange={(e) => setInputLat(e.target.value)}
+                      className="w-full px-3 py-2 rounded-xl bg-bgPrimary border border-borderColor text-xs font-semibold text-textPrimary focus:outline-none font-mono"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-[9px] font-bold text-textMuted uppercase tracking-wider block mb-1">
+                      Longitude
+                    </label>
+                    <input
+                      type="text"
+                      required
+                      placeholder="e.g. 94.1120"
+                      value={inputLon}
+                      onChange={(e) => setInputLon(e.target.value)}
+                      className="w-full px-3 py-2 rounded-xl bg-bgPrimary border border-borderColor text-xs font-semibold text-textPrimary focus:outline-none font-mono"
+                    />
+                  </div>
+                </div>
+
+                <div className="flex gap-2 pt-1">
+                  <button
+                    type="button"
+                    onClick={captureUserLocation}
+                    className="w-1/2 py-2 bg-bgPrimary hover:bg-borderColor/40 border border-borderColor text-[9px] font-black uppercase rounded-xl transition text-textSecondary flex items-center justify-center gap-1"
+                  >
+                    <MapPin className="w-3 h-3 text-blue-500" /> Detect Live GPS
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setInputName("Simulated Officer");
+                      setInputPhone("9988776655");
+                      setInputLat("25.6760");
+                      setInputLon("94.1120");
+                    }}
+                    className="w-1/2 py-2 bg-bgPrimary hover:bg-borderColor/40 border border-borderColor text-[9px] font-black uppercase rounded-xl transition text-alertRed"
+                  >
+                    Set Kohima Red Zone
+                  </button>
+                </div>
+
+                <button
+                  type="submit"
+                  disabled={isSyncing}
+                  className="w-full py-2.5 bg-blue-600 hover:bg-blue-700 text-white text-[10px] font-black uppercase rounded-xl transition shadow-md shadow-blue-500/10 flex items-center justify-center gap-1.5"
+                >
+                  <ShieldCheck className="w-4 h-4" />
+                  {isSyncing ? "Syncing with Supabase..." : "Verify & Connect Officer"}
                 </button>
-                <button type="submit"
-                        className="w-1/2 py-2 bg-blue-600 hover:bg-blue-700 text-white text-[10px] font-black uppercase rounded-xl transition shadow-md shadow-blue-500/10">
-                  Verify Profile
-                </button>
-              </div>
-            </form>
+              </form>
+            )}
           </div>
         </div>
       )}
