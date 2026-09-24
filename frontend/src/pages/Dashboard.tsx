@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { 
-  Layers, Sliders, Database, Eye, CheckCircle2, ChevronRight, BarChart3, Radio, RefreshCw, Filter, X, Shield, AlertTriangle, Home, Users, Satellite, ChevronDown, ChevronUp
+  Layers, Sliders, Database, Eye, CheckCircle2, ChevronRight, BarChart3, Radio, RefreshCw, Filter, X, Shield, AlertTriangle, Home, Users, Satellite, ChevronDown, ChevronUp, XCircle, Trash2, ShieldCheck, RotateCcw
 } from "lucide-react";
 import { useLiveTelemetry, CorridorData, SensorNodeData, CAPAlertData } from "../hooks/useLiveTelemetry";
 import { AlertsBanner } from "../components/AlertsBanner";
@@ -169,6 +169,40 @@ export const Dashboard: React.FC<DashboardProps> = ({ apiBaseUrl, onNavigateToRo
       fetchReports();
       refresh();
     }
+  };
+
+  const handleRevokeReport = async (reportId: number) => {
+    try {
+      await fetch(`${apiBaseUrl}/api/v1/reports/${reportId}/verify?verified=false`, {
+        method: "POST",
+      });
+    } catch {}
+    mockApi.verifyReport(reportId, false);
+    fetchReports();
+    refresh();
+  };
+
+  const handleRejectReport = async (reportId: number) => {
+    try {
+      await fetch(`${apiBaseUrl}/api/v1/reports/${reportId}/reject`, {
+        method: "POST",
+      });
+    } catch {}
+    mockApi.rejectReport(reportId);
+    fetchReports();
+    refresh();
+  };
+
+  const handleDeleteReport = async (reportId: number) => {
+    if (!window.confirm(`Are you sure you want to permanently delete Incident #${reportId}?`)) return;
+    try {
+      await fetch(`${apiBaseUrl}/api/v1/reports/${reportId}`, {
+        method: "DELETE",
+      });
+    } catch {}
+    mockApi.deleteReport(reportId);
+    fetchReports();
+    refresh();
   };
 
   const handleSegmentSelect = (segmentId: number) => {
@@ -574,18 +608,61 @@ export const Dashboard: React.FC<DashboardProps> = ({ apiBaseUrl, onNavigateToRo
                           {report.description || "No description"}
                         </td>
                         <td className="py-2.5 px-3 text-right">
-                          {report.verified ? (
-                            <span className="text-alertGreen font-black flex items-center gap-1 justify-end text-[10px]">
-                              <CheckCircle2 className="w-3.5 h-3.5" /> VERIFIED
-                            </span>
-                          ) : (
+                          <div className="flex items-center justify-end gap-1.5 flex-wrap">
+                            {report.verified ? (
+                              <>
+                                <span className="text-alertGreen font-black flex items-center gap-1 text-[9px] bg-alertGreen/10 border border-alertGreen/20 px-2 py-0.5 rounded">
+                                  <CheckCircle2 className="w-3 h-3" /> VERIFIED
+                                </span>
+                                <button
+                                  onClick={() => handleRevokeReport(report.id)}
+                                  className="px-2 py-0.5 bg-bgCard hover:bg-borderColor/50 border border-borderColor text-textSecondary rounded text-[9px] font-bold transition flex items-center gap-1"
+                                  title="Revoke verification"
+                                >
+                                  <RotateCcw className="w-2.5 h-2.5" /> Revoke
+                                </button>
+                              </>
+                            ) : report.rejected ? (
+                              <>
+                                <span className="text-alertRed font-black flex items-center gap-1 text-[9px] bg-alertRed/10 border border-alertRed/20 px-2 py-0.5 rounded">
+                                  <XCircle className="w-3 h-3" /> REJECTED
+                                </span>
+                                <button
+                                  onClick={() => handleRevokeReport(report.id)}
+                                  className="px-2 py-0.5 bg-bgCard hover:bg-borderColor/50 border border-borderColor text-textSecondary rounded text-[9px] font-bold transition flex items-center gap-1"
+                                  title="Restore to pending"
+                                >
+                                  <RotateCcw className="w-2.5 h-2.5" /> Reopen
+                                </button>
+                              </>
+                            ) : (
+                              <button
+                                onClick={() => handleVerifyReport(report.id)}
+                                className="px-2 py-1 bg-emerald-600 hover:bg-emerald-700 text-white rounded text-[9px] font-bold transition flex items-center gap-1 shadow-sm"
+                                title="Verify Report"
+                              >
+                                <ShieldCheck className="w-3 h-3" /> Verify
+                              </button>
+                            )}
+
+                            {!report.rejected && (
+                              <button
+                                onClick={() => handleRejectReport(report.id)}
+                                className="px-2 py-1 bg-amber-500/10 hover:bg-amber-500/20 text-amber-600 dark:text-amber-400 border border-amber-500/30 rounded text-[9px] font-bold transition flex items-center gap-1"
+                                title="Reject Report"
+                              >
+                                <XCircle className="w-3 h-3" /> Reject
+                              </button>
+                            )}
+
                             <button
-                              onClick={() => handleVerifyReport(report.id)}
-                              className="px-2 py-1 bg-blue-600 hover:bg-blue-700 text-white rounded font-bold transition text-[9px]"
+                              onClick={() => handleDeleteReport(report.id)}
+                              className="p-1 hover:bg-alertRed/15 text-textMuted hover:text-alertRed rounded transition"
+                              title="Permanently Delete Report"
                             >
-                              Verify Blockage
+                              <Trash2 className="w-3.5 h-3.5" />
                             </button>
-                          )}
+                          </div>
                         </td>
                       </tr>
                     ))

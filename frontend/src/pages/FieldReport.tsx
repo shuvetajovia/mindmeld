@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { Camera, RefreshCw, Smartphone, Database, ShieldAlert, Wifi, WifiOff, ShieldCheck, Lock, CheckCircle2 } from "lucide-react";
+import { Camera, RefreshCw, Smartphone, Database, ShieldAlert, Wifi, WifiOff, ShieldCheck, Lock, CheckCircle2, XCircle, Trash2, RotateCcw } from "lucide-react";
 import { IncidentUploader } from "../components/IncidentUploader";
 import { useOfflineSync } from "../hooks/useOfflineSync";
 import { mockApi } from "../services/mockApi";
@@ -23,6 +23,7 @@ interface ReportItem {
   crack_depth: number;
   settlement_proximity: string;
   verified: boolean;
+  rejected?: boolean;
   created_at: string;
 }
 
@@ -87,15 +88,17 @@ export const FieldReport: React.FC<FieldReportProps> = ({ apiBaseUrl }) => {
 
     // Update local state
     setReports(prev =>
-      prev.map(r => (r.id === reportId ? { ...r, verified: nextStatus } : r))
+      prev.map(r => (r.id === reportId ? { ...r, verified: nextStatus, rejected: false } : r))
     );
+
+    mockApi.verifyReport(reportId, nextStatus);
 
     // Sync to Supabase DB if available
     if (supabase && isSupabaseConfigured) {
       try {
         await supabase
           .from("field_crowdsource_reports")
-          .update({ verified: nextStatus })
+          .update({ verified: nextStatus, rejected: false })
           .eq("id", reportId);
       } catch (err) {
         console.warn("[FieldReport] Supabase report update failed:", err);
@@ -107,6 +110,68 @@ export const FieldReport: React.FC<FieldReportProps> = ({ apiBaseUrl }) => {
         ? `✅ Incident #${reportId} verified by Officer ${officerProfile.name}`
         : `Incident #${reportId} status returned to PENDING`
     );
+    setTimeout(() => setVerifyNotice(null), 4000);
+  };
+
+  const handleRejectReport = async (reportId: number) => {
+    if (!officerProfile) {
+      setVerifyNotice("⚠️ Action restricted: Only authenticated Disaster Management Officers can reject incident reports.");
+      setTimeout(() => setVerifyNotice(null), 4000);
+      return;
+    }
+
+    // Update local state
+    setReports(prev =>
+      prev.map(r => (r.id === reportId ? { ...r, verified: false, rejected: true } : r))
+    );
+
+    mockApi.rejectReport(reportId);
+
+    // Sync to Supabase DB if available
+    if (supabase && isSupabaseConfigured) {
+      try {
+        await supabase
+          .from("field_crowdsource_reports")
+          .update({ verified: false, rejected: true })
+          .eq("id", reportId);
+      } catch (err) {
+        console.warn("[FieldReport] Supabase report rejection failed:", err);
+      }
+    }
+
+    setVerifyNotice(`❌ Incident #${reportId} rejected by Officer ${officerProfile.name}`);
+    setTimeout(() => setVerifyNotice(null), 4000);
+  };
+
+  const handleDeleteReport = async (reportId: number) => {
+    if (!officerProfile) {
+      setVerifyNotice("⚠️ Action restricted: Only authenticated Disaster Management Officers can delete incident reports.");
+      setTimeout(() => setVerifyNotice(null), 4000);
+      return;
+    }
+
+    if (!window.confirm(`Are you sure you want to permanently delete Incident #${reportId}?`)) {
+      return;
+    }
+
+    // Update local state
+    setReports(prev => prev.filter(r => r.id !== reportId));
+
+    mockApi.deleteReport(reportId);
+
+    // Sync to Supabase DB if available
+    if (supabase && isSupabaseConfigured) {
+      try {
+        await supabase
+          .from("field_crowdsource_reports")
+          .delete()
+          .eq("id", reportId);
+      } catch (err) {
+        console.warn("[FieldReport] Supabase report deletion failed:", err);
+      }
+    }
+
+    setVerifyNotice(`🗑️ Incident #${reportId} permanently deleted by Officer ${officerProfile.name}`);
     setTimeout(() => setVerifyNotice(null), 4000);
   };
 
@@ -225,11 +290,13 @@ export const FieldReport: React.FC<FieldReportProps> = ({ apiBaseUrl }) => {
                       </span>
                       <div className="flex items-center gap-1.5">
                         <span className={`px-2 py-0.5 rounded text-[8px] font-black border uppercase ${
-                          r.verified 
+                          r.rejected
+                            ? "bg-red-500/15 text-red-500 border-red-500/25"
+                            : r.verified 
                             ? "bg-alertGreen/15 text-alertGreen border-alertGreen/20" 
                             : "bg-alertYellow/15 text-alertYellow border-alertYellow/20 animate-pulse-slow"
                         }`}>
-                          {r.verified ? "VERIFIED" : "PENDING"}
+                          {r.rejected ? "REJECTED" : r.verified ? "VERIFIED" : "PENDING"}
                         </span>
                       </div>
                     </div>
@@ -252,28 +319,76 @@ export const FieldReport: React.FC<FieldReportProps> = ({ apiBaseUrl }) => {
                     </div>
 
                     {/* Officer Verification Action */}
-                    <div className="pt-1.5 flex items-center justify-end">
-                      {officerProfile ? (
-                        r.verified ? (
-                          <button
-                            onClick={() => handleToggleVerification(r.id, false)}
-                            className="px-2.5 py-1 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-600 border border-emerald-500/25 rounded-lg text-[9px] font-bold flex items-center gap-1 transition"
-                          >
-                            <CheckCircle2 className="w-3 h-3 text-emerald-500" /> Verified by Officer (Click to Revoke)
-                          </button>
+                    <div className="pt-2 border-t border-borderColor/40 flex flex-wrap items-center justify-between gap-2">
+                      <div className="flex items-center gap-1.5">
+                        {r.verified ? (
+                          <span className="text-[10px] font-bold text-alertGreen flex items-center gap-1">
+                            <CheckCircle2 className="w-3.5 h-3.5" /> Verified by Officer
+                          </span>
+                        ) : r.rejected ? (
+                          <span className="text-[10px] font-bold text-alertRed flex items-center gap-1">
+                            <XCircle className="w-3.5 h-3.5" /> Rejected by Officer
+                          </span>
                         ) : (
-                          <button
-                            onClick={() => handleToggleVerification(r.id, true)}
-                            className="px-3 py-1 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-[9px] font-black uppercase transition shadow-sm flex items-center gap-1"
-                          >
-                            <ShieldCheck className="w-3 h-3" /> Verify as Officer
-                          </button>
-                        )
-                      ) : (
-                        <span className="text-[8px] text-textMuted font-semibold flex items-center gap-1">
-                          <Lock className="w-2.5 h-2.5 text-textMuted" /> Officer verification required
-                        </span>
-                      )}
+                          <span className="text-[10px] font-bold text-textMuted flex items-center gap-1">
+                            Awaiting Officer Action
+                          </span>
+                        )}
+                      </div>
+
+                      <div className="flex items-center gap-1.5 flex-wrap">
+                        {officerProfile ? (
+                          <>
+                            {!r.verified ? (
+                              <button
+                                onClick={() => handleToggleVerification(r.id, true)}
+                                className="px-2.5 py-1 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-[9px] font-black uppercase transition shadow-sm flex items-center gap-1 cursor-pointer"
+                                title="Mark report as verified and valid"
+                              >
+                                <ShieldCheck className="w-3 h-3" /> Verify
+                              </button>
+                            ) : (
+                              <button
+                                onClick={() => handleToggleVerification(r.id, false)}
+                                className="px-2 py-1 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-600 border border-emerald-500/25 rounded-lg text-[9px] font-bold flex items-center gap-1 transition cursor-pointer"
+                                title="Revoke verification to pending"
+                              >
+                                <RotateCcw className="w-3 h-3" /> Revoke
+                              </button>
+                            )}
+
+                            {!r.rejected ? (
+                              <button
+                                onClick={() => handleRejectReport(r.id)}
+                                className="px-2.5 py-1 bg-amber-500/10 hover:bg-amber-500/20 text-amber-600 dark:text-amber-400 border border-amber-500/30 rounded-lg text-[9px] font-bold flex items-center gap-1 transition cursor-pointer"
+                                title="Reject inaccurate or invalid field report"
+                              >
+                                <XCircle className="w-3 h-3" /> Reject
+                              </button>
+                            ) : (
+                              <button
+                                onClick={() => handleToggleVerification(r.id, false)}
+                                className="px-2 py-1 bg-amber-500/10 hover:bg-amber-500/20 text-amber-600 border border-amber-500/30 rounded-lg text-[9px] font-bold flex items-center gap-1 transition cursor-pointer"
+                                title="Restore report to pending"
+                              >
+                                <RotateCcw className="w-3 h-3" /> Reopen
+                              </button>
+                            )}
+
+                            <button
+                              onClick={() => handleDeleteReport(r.id)}
+                              className="px-2.5 py-1 bg-alertRed/10 hover:bg-alertRed text-alertRed hover:text-white border border-alertRed/30 rounded-lg text-[9px] font-bold flex items-center gap-1 transition cursor-pointer"
+                              title="Permanently delete this incident report"
+                            >
+                              <Trash2 className="w-3 h-3" /> Delete
+                            </button>
+                          </>
+                        ) : (
+                          <span className="text-[8px] text-textMuted font-semibold flex items-center gap-1">
+                            <Lock className="w-2.5 h-2.5 text-textMuted" /> Officer verification required
+                          </span>
+                        )}
+                      </div>
                     </div>
                   </div>
                 ))

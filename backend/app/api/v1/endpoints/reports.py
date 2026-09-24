@@ -158,3 +158,23 @@ def verify_report(report_id: int, verified: bool = True, db: Session = Depends(g
         "verified": report.verified,
         "message": f"Report verified as {verified}. Network corridor dynamic weights updated."
     }
+
+@router.post("/{report_id}/reject")
+def reject_report(report_id: int, db: Session = Depends(get_db)):
+    """Officer rejects an inaccurate or invalid incident report."""
+    report = db.query(FieldCrowdsourceReport).filter(FieldCrowdsourceReport.id == report_id).first()
+    if not report:
+        raise HTTPException(status_code=404, detail="Incident report not found.")
+    report.verified = False
+    db.commit()
+    return {"success": True, "report_id": report.id, "verified": False, "message": f"Report #{report_id} rejected."}
+
+@router.delete("/{report_id}")
+def delete_report(report_id: int, db: Session = Depends(get_db)):
+    """Officer permanently deletes an incident report."""
+    report = db.query(FieldCrowdsourceReport).filter(FieldCrowdsourceReport.id == report_id).first()
+    if not report:
+        raise HTTPException(status_code=404, detail="Incident report not found.")
+    db.delete(report)
+    db.commit()
+    return {"success": True, "report_id": report_id, "message": f"Report #{report_id} permanently deleted."}

@@ -1318,10 +1318,27 @@ export const mockApi = {
         if (status) {
           this.blockNearestCorridor(r.latitude, r.longitude);
         }
-        return { ...r, verified: status };
+        return { ...r, verified: status, rejected: false };
       }
       return r;
     });
+    this.saveReports(updated);
+  },
+
+  rejectReport(reportId: number) {
+    const reports = this.getReports();
+    const updated = reports.map(r => {
+      if (r.id === reportId) {
+        return { ...r, verified: false, rejected: true };
+      }
+      return r;
+    });
+    this.saveReports(updated);
+  },
+
+  deleteReport(reportId: number) {
+    const reports = this.getReports();
+    const updated = reports.filter(r => r.id !== reportId);
     this.saveReports(updated);
   },
 
