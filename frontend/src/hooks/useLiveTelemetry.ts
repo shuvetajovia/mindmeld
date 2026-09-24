@@ -123,10 +123,7 @@ export function useLiveTelemetry(
     if (!supabase || !isSupabaseConfigured) return false;
 
     try {
-      // 1. Trigger server-side sensor drift via RPC (simulates IoT push)
-      await supabase.rpc("simulate_sensor_drift").throwOnError();
-
-      // 2. Fetch fresh sensor data after drift
+      // Fetch fresh sensor data directly — no server-side drift simulation
       const { data: sensorRows, error: sErr } = await supabase
         .from("sensor_nodes")
         .select("*")
