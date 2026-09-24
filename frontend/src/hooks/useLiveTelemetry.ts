@@ -146,6 +146,8 @@ export function useLiveTelemetry(
       setCorridors(mockApi.getCorridors()); // corridors remain mock-computed from sensor data
       setIsOfflineFallback(false);
       setError(null);
+      // Clear any stale localStorage mock-drift values so they don't interfere
+      try { localStorage.removeItem("mindmeld_sensors"); } catch (_) {}
       return true;
     } catch (err: any) {
       console.warn("[useLiveTelemetry] Supabase fetch failed:", err?.message);
@@ -194,10 +196,10 @@ export function useLiveTelemetry(
       return;
     } catch (_) { /* fall through */ }
 
-    // Try Supabase live DB
+    // Try Supabase live DB — if configured, NEVER fall back to mock
     const supabaseOk = await fetchFromSupabase();
-    if (!supabaseOk) {
-      // Final fallback: client-side mock with drift
+    if (!supabaseOk && !isSupabaseConfigured) {
+      // Only use mock when Supabase is not configured at all
       fetchFromMock();
     }
     setLoading(false);

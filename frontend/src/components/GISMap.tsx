@@ -3,6 +3,7 @@ import { MapContainer, TileLayer, WMSTileLayer, Polyline, CircleMarker, Popup, M
 import L from "leaflet";
 import { CorridorData, SensorNodeData } from "../hooks/useLiveTelemetry";
 import { SafeRouteResponse } from "../types/routing";
+import { computeSensorRisk } from "../lib/riskUtils";
 
 // Overrides default Leaflet marker assets hash resolution in React SPA build contexts
 delete (L.Icon.Default.prototype as any)._getIconUrl;
@@ -391,36 +392,10 @@ export const GISMap: React.FC<GISMapProps> = ({
 
           {/* Render 40 dynamic stations with pulsing halos */}
           {sensors.map((s) => {
-            const SM = s.soil_moisture;
-            const rain = s.rain_24h_obs;
-            const api7d = s.api_7d || 0;
-            
-            // Designated extreme hazard hotspots (monsoon escarpment / steep active faults)
-            const isExtremeHotspot = [
-              'SN-MEG-CHE-01', 'SN-MEG-MAW-01', 'SN-SKM-CHU-01', 'SN-SKM-MAN-01', 'SN-SKM-DZO-01',
-              'SN-ASM-DH-01', 'SN-ASM-RRL-01', 'SN-NGL-KOH-01', 'SN-MZR-AIZ-01', 'SN-ARN-TAW-01',
-              'SN-MNP-TAM-01'
-            ].includes(s.id);
-
-            const pore = Math.min(120, SM * 0.9);
-            const incl = Math.min(0.12, pore * 0.00045 + rain * 0.0002);
-            
-            // Two-Tier Fused ML Calibrated Risk Calculation
-            const logitT = 0.018 * Math.min(rain, 190) + 0.005 * Math.min(api7d, 400) + 0.022 * pore + 20.0 * incl - 1.95;
-            const logitS = 0.045 * 28 + 0.0003 * 1200 + 1.2 * 0.02 - 1.8 * 0.05 + 0.15 * 0.5 - 1.25;
-            const fusedProb = 1 / (1 + Math.exp(-(0.169 * logitS + 0.936 * logitT - 0.778)));
-            
-            // Standardized 1 - 10 risk rating
-            let computedRisk = 2.1; // Default Safe Green
-            if (isExtremeHotspot) {
-              computedRisk = fusedProb > 0.82 ? 9.2 : fusedProb > 0.55 ? 7.6 : fusedProb > 0.20 ? 4.8 : 2.1;
-            } else {
-              // Nominal open highway stations (Itanagar, Agartala, Pasighat, Dharmanagar, etc.) strictly safe
-              computedRisk = (rain > 120 && SM > 65) ? 4.8 : 2.1;
-            }
-
-            const color = getAlertColor(computedRisk);
-            const haloClass = getAlertHaloClass(computedRisk);
+            // Use the single shared risk engine — consistent with Dashboard, IoT page, etc.
+            const risk = computeSensorRisk(s);
+            const color = risk.color;
+            const haloClass = getAlertHaloClass(risk.score);
 
             return (
               <React.Fragment key={s.id}>
@@ -464,7 +439,7 @@ export const GISMap: React.FC<GISMapProps> = ({
                         <p>API 7d Index: <strong>{s.api_7d.toFixed(1)} mm</strong></p>
                         <p>Seasonal Anomaly: <strong>{s.r24_seasonal_anom.toFixed(1)} mm</strong></p>
                         <p className="border-t border-borderColor/60 mt-1 pt-1">
-                          Alert: <strong style={{ color: color }}>{computedRisk >= 9 ? "CRITICAL RED" : computedRisk >= 7 ? "HIGH ORANGE" : computedRisk >= 4 ? "MODERATE CAUTION (YELLOW)" : "SAFE (LOW GREEN)"}</strong>
+                          Alert: <strong style={{ color: color }}>{risk.label}</strong>
                         </p>
                       </div>
                       <button

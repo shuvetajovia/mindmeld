@@ -1,6 +1,7 @@
 import React, { useMemo } from "react";
 import { AlertTriangle, ShieldAlert, Activity, Info } from "lucide-react";
 import { SensorNodeData } from "../hooks/useLiveTelemetry";
+import { computeSensorRisk } from "../lib/riskUtils";
 import {
   ScatterChart, Scatter, XAxis, YAxis, CartesianGrid, Tooltip,
   ResponsiveContainer, ReferenceLine, Label
@@ -78,10 +79,12 @@ export const SensorCorrelationMatrix: React.FC<SensorCorrelationMatrixProps> = (
     "Pore P. × Inclinometer": pearsonR(pressures, drifts),
   };
 
-  // Critical trigger check: Pore P. > 50 kPa AND Inclinometer > 0.06°/hr
+  // Critical trigger: Pore P. > 50 kPa AND Inclinometer > 0.06°/hr
+  // BUT only fire this alert if the actual sensor data also indicates high risk
+  const actualRisk = sensor ? computeSensorRisk(sensor) : null;
   const avgPressure = pressures.reduce((a, b) => a + b, 0) / pressures.length;
   const maxDrift = Math.max(...drifts);
-  const criticalAlert = avgPressure > 50 && maxDrift > 0.06;
+  const criticalAlert = !!actualRisk && actualRisk.score >= 7 && avgPressure > 50 && maxDrift > 0.06;
 
   // Scatter data for the most critical pair: Pore P. × Inclinometer
   const scatterData = series.map(s => ({ x: parseFloat(s.pressure.toFixed(1)), y: parseFloat((s.drift * 100).toFixed(3)) }));

@@ -10,6 +10,7 @@ import { RiskDial } from "../components/RiskDial";
 import { StateResilienceWidget } from "../components/StateResilienceWidget";
 import { SARInspector } from "../components/SARInspector";
 import { mockApi } from "../services/mockApi";
+import { computeSensorRisk } from "../lib/riskUtils";
 
 interface DashboardProps {
   apiBaseUrl: string;
@@ -226,22 +227,13 @@ export const Dashboard: React.FC<DashboardProps> = ({ apiBaseUrl }) => {
   const getDistrictAlertLevel = (sensorId: string) => {
     const s = sensors.find(node => node.id === sensorId);
     if (!s) return { label: "Low", color: "text-alertGreen bg-alertGreen/10 border-alertGreen/20", score: 2.0 };
-    
-    const SM = s.soil_moisture;
-    const rain = s.rain_24h_obs;
-    const risk = SM > 50 || rain > 150 ? 9.2 : SM > 40 || rain > 90 ? 7.5 : SM > 30 || rain > 40 ? 5.2 : 2.0;
-
-    if (risk >= 9.0) return { label: "CRITICAL", color: "text-alertRed bg-alertRed/10 border-alertRed/35 animate-pulse-slow", score: risk };
-    if (risk >= 7.0) return { label: "HIGH", color: "text-alertOrange bg-alertOrange/10 border-alertOrange/20", score: risk };
-    if (risk >= 4.0) return { label: "CAUTION", color: "text-alertYellow bg-alertYellow/10 border-alertYellow/20", score: risk };
-    return { label: "NOMINAL", color: "text-alertGreen bg-alertGreen/10 border-alertGreen/20", score: risk };
+    const r = computeSensorRisk(s);
+    return { label: r.shortLabel, color: `${r.tailwindText} ${r.tailwindBg} ${r.tailwindBorder}`, score: r.score };
   };
 
   // Filter application
   const filteredSensors = sensors.filter(s => {
-    const SM = s.soil_moisture;
-    const rain = s.rain_24h_obs;
-    const risk = SM > 50 || rain > 150 ? 9.2 : SM > 40 || rain > 90 ? 7.5 : SM > 30 || rain > 40 ? 5.2 : 2.0;
+    const risk = computeSensorRisk(s).score;
 
     if (filterAlert === "RED" && risk < 9.0) return false;
     if (filterAlert === "ORANGE" && (risk < 7.0 || risk >= 9.0)) return false;

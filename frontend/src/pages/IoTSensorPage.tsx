@@ -4,6 +4,7 @@ import { useLiveTelemetry } from "../hooks/useLiveTelemetry";
 import { AlertsBanner } from "../components/AlertsBanner";
 import { TelemetryGraphs } from "../components/TelemetryGraphs";
 import { SensorCorrelationMatrix } from "../components/SensorCorrelationMatrix";
+import { computeSensorRisk } from "../lib/riskUtils";
 
 interface IoTSensorPageProps {
   apiBaseUrl: string;
@@ -21,32 +22,13 @@ export const IoTSensorPage: React.FC<IoTSensorPageProps> = ({ apiBaseUrl }) => {
     refresh();
   };
 
-  // Compute derived alert status from selected sensor
-  const getSensorAlertStatus = () => {
-    if (!selectedSensor) return { label: "No Data", color: "text-textMuted", bg: "bg-bgPrimary" };
-    const SM = selectedSensor.soil_moisture;
-    const rain = selectedSensor.rain_24h_obs;
-    const api7d = selectedSensor.api_7d || 0;
-    const pore = Math.min(120, SM * 0.9);
-    const incl = Math.min(0.12, pore * 0.00045 + rain * 0.0002);
-
-    const logitT = 0.018 * rain + 0.005 * api7d + 0.022 * pore + 20.0 * incl - 1.95;
-    const logitS = 0.045 * 28 + 0.0003 * 1200 + 1.2 * 0.02 - 1.8 * 0.05 + 0.15 * 0.5 - 1.25;
-    const fusedProb = 1 / (1 + Math.exp(-(0.169 * logitS + 0.936 * logitT - 0.778)));
-
-    if (fusedProb > 0.82 && (rain > 150 || SM > 60)) {
-      return { label: "CRITICAL RED", color: "text-alertRed", bg: "bg-alertRed/10 border-alertRed/25 animate-pulse-slow" };
-    }
-    if (fusedProb > 0.55 && (rain > 90 || SM > 50)) {
-      return { label: "HIGH ORANGE", color: "text-alertOrange", bg: "bg-alertOrange/10 border-alertOrange/20" };
-    }
-    if (fusedProb > 0.20 || rain > 50 || SM > 42) {
-      return { label: "CAUTION YELLOW", color: "text-alertYellow", bg: "bg-alertYellow/10 border-alertYellow/20" };
-    }
-    return { label: "NOMINAL SAFE (GREEN)", color: "text-alertGreen", bg: "bg-alertGreen/10 border-alertGreen/20" };
-  };
-
-  const alertStatus = getSensorAlertStatus();
+  // Use shared risk engine — consistent with map and dashboard
+  const alertStatus = selectedSensor
+    ? (() => {
+        const r = computeSensorRisk(selectedSensor);
+        return { label: r.label, color: r.tailwindText, bg: `${r.tailwindBg} ${r.tailwindBorder}` };
+      })()
+    : { label: "No Data", color: "text-textMuted", bg: "bg-bgPrimary" };
 
   // Group sensors by state for the dropdown
   const stateGroups: Record<string, typeof sensors> = {};
