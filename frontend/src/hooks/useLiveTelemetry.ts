@@ -1,6 +1,8 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { mockApi } from "../services/mockApi";
 import { supabase, isSupabaseConfigured, SupabaseSensorRow, SupabaseAlertRow } from "../services/supabaseClient";
+import { fetchLiveMeteorologicalTelemetry } from "../services/liveWeatherService";
+import { computeSensorRisk } from "../lib/riskUtils";
 
 export interface SensorNodeData {
   id: string;
@@ -106,9 +108,65 @@ function mapAlertRow(row: SupabaseAlertRow): CAPAlertData {
   };
 }
 
+/**
+ * Dynamically updates corridor sections based on live sensor risk scores.
+ */
+function computeDynamicCorridors(baseCorridors: CorridorData[], sensorList: SensorNodeData[]): CorridorData[] {
+  const sensorMap = new Map<string, SensorNodeData>();
+  for (const s of sensorList) {
+    sensorMap.set(s.id, s);
+  }
+
+  return baseCorridors.map((c) => {
+    let maxRisk = 0;
+    let sumRisk = 0;
+
+    const updatedSections = c.sections.map((sec) => {
+      const matchedSensor = sec.sensor_node_id ? sensorMap.get(sec.sensor_node_id) : null;
+      let secRiskScore = sec.risk_score;
+      let secProb = sec.risk_probability;
+      let secStatus = sec.status;
+
+      if (matchedSensor) {
+        const risk = computeSensorRisk(matchedSensor);
+        secRiskScore = risk.score;
+        secProb = risk.prob;
+        if (risk.score >= 8.5) secStatus = "BLOCKED";
+        else if (risk.score >= 6.8) secStatus = "HIGH RISK";
+        else if (risk.score >= 4.0) secStatus = "CAUTION";
+        else secStatus = "OPEN";
+      }
+
+      if (secRiskScore > maxRisk) maxRisk = secRiskScore;
+      sumRisk += secRiskScore;
+
+      return {
+        ...sec,
+        risk_score: secRiskScore,
+        risk_probability: secProb,
+        status: secStatus,
+      };
+    });
+
+    const avgRisk = updatedSections.length > 0 ? sumRisk / updatedSections.length : 0;
+    let corridorStatus = "OPEN";
+    if (maxRisk >= 8.5) corridorStatus = "BLOCKED";
+    else if (maxRisk >= 6.8) corridorStatus = "HIGH RISK";
+    else if (maxRisk >= 4.0) corridorStatus = "CAUTION";
+
+    return {
+      ...c,
+      status: corridorStatus,
+      max_risk: Math.round(maxRisk * 10) / 10,
+      average_risk: Math.round(avgRisk * 10) / 10,
+      sections: updatedSections,
+    };
+  });
+}
+
 export function useLiveTelemetry(
   apiBaseUrl: string,
-  refreshIntervalMs: number = 10000
+  refreshIntervalMs: number = 30000
 ) {
   const [sensors, setSensors] = useState<SensorNodeData[]>([]);
   const [corridors, setCorridors] = useState<CorridorData[]>([]);
@@ -118,95 +176,81 @@ export function useLiveTelemetry(
   const [isOfflineFallback, setIsOfflineFallback] = useState<boolean>(false);
   const realtimeChannelRef = useRef<ReturnType<NonNullable<typeof supabase>["channel"]> | null>(null);
 
-  // ── Supabase fetch ───────────────────────────────────────
-  const fetchFromSupabase = useCallback(async (): Promise<boolean> => {
-    if (!supabase || !isSupabaseConfigured) return false;
-
+  // Clear stale persisted mock drift from localStorage
+  useEffect(() => {
     try {
-      // Fetch fresh sensor data directly — no server-side drift simulation
-      const { data: sensorRows, error: sErr } = await supabase
-        .from("sensor_nodes")
-        .select("*")
-        .order("id");
-      if (sErr) throw sErr;
-
-      // 3. Fetch active CAP alerts
-      const { data: alertRows, error: aErr } = await supabase
-        .from("cap_alerts")
-        .select("*")
-        .eq("status", "Actual")
-        .order("sent", { ascending: false });
-      if (aErr) throw aErr;
-
-      setSensors((sensorRows as SupabaseSensorRow[]).map(mapSensorRow));
-      setAlerts((alertRows as SupabaseAlertRow[]).map(mapAlertRow));
-      setCorridors(mockApi.getCorridors()); // corridors remain mock-computed from sensor data
-      setIsOfflineFallback(false);
-      setError(null);
-      // Clear any stale localStorage mock-drift values so they don't interfere
-      try { localStorage.removeItem("mindmeld_sensors"); } catch (_) {}
-      return true;
-    } catch (err: any) {
-      console.warn("[useLiveTelemetry] Supabase fetch failed:", err?.message);
-      return false;
-    }
+      localStorage.removeItem("mindmeld_sensors");
+    } catch (_) {}
   }, []);
 
-  // ── Mock fallback with drift ─────────────────────────────
-  const fetchFromMock = useCallback(() => {
-    const currentSensors = mockApi.getSensors();
-    const drifted = currentSensors.map(s => {
-      const driftSM   = (Math.random() - 0.5) * 0.8;
-      const driftRain = Math.random() > 0.75 ? Math.random() * 2.0 : 0.0;
-      return {
-        ...s,
-        soil_moisture: Math.max(10.0, Math.min(95.0, s.soil_moisture + driftSM)),
-        rain_24h_obs:  Math.max(0.0,  s.rain_24h_obs + driftRain),
-        api_7d:        Math.max(0.0,  s.api_7d + driftRain),
-        last_updated:  new Date().toISOString(),
-      };
-    });
-    mockApi.saveSensors(drifted);
-    setSensors(drifted);
-    setCorridors(mockApi.getCorridors());
-    setAlerts(mockApi.getActiveAlerts());
-    setIsOfflineFallback(true);
-    setError(null);
-  }, []);
-
-  // ── Unified fetch ────────────────────────────────────────
+  // ── Unified live data fetch ──────────────────────────────
   const fetchTelemetry = useCallback(async () => {
-    // Try REST API backend first
     try {
-      const [sensorsRes, corridorsRes, alertsRes] = await Promise.all([
-        fetch(`${apiBaseUrl}/api/v1/telemetry/nodes`),
-        fetch(`${apiBaseUrl}/api/v1/corridors/status`),
-        fetch(`${apiBaseUrl}/api/v1/alerts/active`),
-      ]);
-      if (!sensorsRes.ok || !corridorsRes.ok || !alertsRes.ok) throw new Error("API unavailable");
-      setSensors(await sensorsRes.json());
-      setCorridors(await corridorsRes.json());
-      setAlerts((await alertsRes.json()).alerts || []);
+      // 1. Fetch live real-time meteorological telemetry across all 41 stations
+      const liveSensors = await fetchLiveMeteorologicalTelemetry();
+      
+      // 2. Fetch active CAP alerts from Supabase if configured
+      let activeAlerts: CAPAlertData[] = [];
+      if (supabase && isSupabaseConfigured) {
+        try {
+          const { data: alertRows } = await supabase
+            .from("cap_alerts")
+            .select("*")
+            .eq("status", "Actual")
+            .order("sent", { ascending: false });
+          if (alertRows && alertRows.length > 0) {
+            activeAlerts = (alertRows as SupabaseAlertRow[]).map(mapAlertRow);
+          }
+        } catch (_) {}
+      }
+
+      if (activeAlerts.length === 0) {
+        activeAlerts = mockApi.getActiveAlerts();
+      }
+
+      // 3. Compute dynamic corridor statuses based on live station telemetry
+      const baseCorridors = mockApi.getCorridors();
+      const dynamicCorridors = computeDynamicCorridors(baseCorridors, liveSensors);
+
+      setSensors(liveSensors);
+      setCorridors(dynamicCorridors);
+      setAlerts(activeAlerts);
       setIsOfflineFallback(false);
       setError(null);
       setLoading(false);
-      return;
-    } catch (_) { /* fall through */ }
+    } catch (err: any) {
+      console.warn("[useLiveTelemetry] Live fetch fallback notice:", err?.message);
+      
+      // Fallback: fetch from Supabase if live weather failed
+      if (supabase && isSupabaseConfigured) {
+        try {
+          const { data: sensorRows } = await supabase.from("sensor_nodes").select("*").order("id");
+          if (sensorRows && sensorRows.length > 0) {
+            const mapped = (sensorRows as SupabaseSensorRow[]).map(mapSensorRow);
+            const dynamicCorridors = computeDynamicCorridors(mockApi.getCorridors(), mapped);
+            setSensors(mapped);
+            setCorridors(dynamicCorridors);
+            setAlerts(mockApi.getActiveAlerts());
+            setIsOfflineFallback(false);
+            setLoading(false);
+            return;
+          }
+        } catch (_) {}
+      }
 
-    // Try Supabase live DB — if configured, NEVER fall back to mock
-    const supabaseOk = await fetchFromSupabase();
-    if (!supabaseOk && !isSupabaseConfigured) {
-      // Only use mock when Supabase is not configured at all
-      fetchFromMock();
+      const fallbackSensors = mockApi.getSensors();
+      setSensors(fallbackSensors);
+      setCorridors(computeDynamicCorridors(mockApi.getCorridors(), fallbackSensors));
+      setAlerts(mockApi.getActiveAlerts());
+      setIsOfflineFallback(true);
+      setLoading(false);
     }
-    setLoading(false);
-  }, [apiBaseUrl, fetchFromSupabase, fetchFromMock]);
+  }, []);
 
   // ── Supabase Realtime subscription ──────────────────────
   useEffect(() => {
     if (!supabase || !isSupabaseConfigured) return;
 
-    // Subscribe to sensor_nodes INSERT/UPDATE events with unique channel id for React Strict Mode
     const channelId = `sensor-live-feed-${Math.random().toString(36).substring(7)}`;
     const channel = supabase!
       .channel(channelId)
@@ -216,9 +260,11 @@ export function useLiveTelemetry(
         (payload) => {
           if (payload.eventType === "UPDATE" || payload.eventType === "INSERT") {
             const updated = mapSensorRow(payload.new as SupabaseSensorRow);
-            setSensors(prev =>
-              prev.map(s => s.id === updated.id ? updated : s)
-            );
+            setSensors((prev) => {
+              const next = prev.map((s) => (s.id === updated.id ? updated : s));
+              setCorridors((prevCorridors) => computeDynamicCorridors(prevCorridors, next));
+              return next;
+            });
           }
         }
       )
@@ -226,7 +272,6 @@ export function useLiveTelemetry(
         "postgres_changes",
         { event: "*", schema: "public", table: "cap_alerts" },
         () => {
-          // Refetch alerts on any change
           supabase!
             .from("cap_alerts")
             .select("*")
@@ -245,7 +290,7 @@ export function useLiveTelemetry(
     };
   }, []);
 
-  // ── Initial fetch + polling interval ────────────────────
+  // ── Initial fetch + live polling interval ────────────────
   useEffect(() => {
     fetchTelemetry();
     const interval = setInterval(fetchTelemetry, refreshIntervalMs);

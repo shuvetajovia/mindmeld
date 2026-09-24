@@ -18,12 +18,21 @@ export interface RiskResult {
 }
 
 export function computeSensorRisk(s: SensorNodeData): RiskResult {
-  const SM   = s.soil_moisture;
-  const rain = s.rain_24h_obs;
-  const api  = s.api_7d ?? 0;
+  const SM   = s.soil_moisture ?? 25.0;
+  const rain = s.rain_24h_obs ?? 0.0;
+  const api  = s.api_7d ?? 0.0;
 
+  // Pore-water pressure (kPa): u_w ≈ 0.88 * VWC
   const pore = Math.min(120, SM * 0.88);
-  const incl = Math.min(0.12, pore * 0.00045 + rain * 0.00018);
+
+  // Inclinometer surface velocity (deg/hr): baseline 0.0005 deg/hr under stable slopes
+  const incl = Math.min(
+    0.12,
+    Math.max(
+      0.0005,
+      (pore > 50 ? (pore - 50) * 0.001 : 0) + (rain > 75 ? (rain - 75) * 0.0005 : 0)
+    )
+  );
 
   const logitT = 0.018 * Math.min(rain, 200)
                + 0.005 * Math.min(api, 450)
@@ -36,17 +45,22 @@ export function computeSensorRisk(s: SensorNodeData): RiskResult {
   let score: number, label: string, shortLabel: string;
   let color: string, tailwindText: string, tailwindBg: string, tailwindBorder: string, isPulsing: boolean;
 
-  if (fusedProb > 0.78 && (rain > 130 || SM > 58)) {
-    score = 9.2; label = "CRITICAL RED"; shortLabel = "CRITICAL"; color = "#EF4444";
+  // Categorize based on fused probability and physical trigger thresholds
+  if (rain >= 130 || SM >= 60 || fusedProb >= 0.75) {
+    score = Math.min(10.0, 8.5 + (fusedProb * 1.5));
+    label = "CRITICAL RED"; shortLabel = "CRITICAL"; color = "#EF4444";
     tailwindText = "text-alertRed"; tailwindBg = "bg-alertRed/10"; tailwindBorder = "border-alertRed/35"; isPulsing = true;
-  } else if (fusedProb > 0.50 && (rain > 80 || SM > 46)) {
-    score = 7.5; label = "HIGH ORANGE"; shortLabel = "HIGH"; color = "#F97316";
+  } else if (rain >= 75 || SM >= 48 || fusedProb >= 0.50) {
+    score = Math.min(8.4, 6.8 + (fusedProb * 1.6));
+    label = "HIGH ORANGE"; shortLabel = "HIGH"; color = "#F97316";
     tailwindText = "text-alertOrange"; tailwindBg = "bg-alertOrange/10"; tailwindBorder = "border-alertOrange/25"; isPulsing = false;
-  } else if (fusedProb > 0.18 || rain > 40 || SM > 36) {
-    score = 4.8; label = "CAUTION YELLOW"; shortLabel = "CAUTION"; color = "#F59E0B";
+  } else if (rain >= 35 || SM >= 38 || fusedProb >= 0.28) {
+    score = Math.min(6.5, 4.0 + (fusedProb * 2.5));
+    label = "CAUTION YELLOW"; shortLabel = "CAUTION"; color = "#F59E0B";
     tailwindText = "text-alertYellow"; tailwindBg = "bg-alertYellow/10"; tailwindBorder = "border-alertYellow/25"; isPulsing = false;
   } else {
-    score = 2.1; label = "SAFE GREEN"; shortLabel = "NOMINAL"; color = "#10B981";
+    score = Math.max(1.0, (fusedProb * 3.5));
+    label = "SAFE GREEN"; shortLabel = "NOMINAL"; color = "#10B981";
     tailwindText = "text-alertGreen"; tailwindBg = "bg-alertGreen/10"; tailwindBorder = "border-alertGreen/20"; isPulsing = false;
   }
 
@@ -57,10 +71,10 @@ export function summarizeRiskCounts(sensors: SensorNodeData[]) {
   let critical = 0, high = 0, caution = 0, nominal = 0;
   for (const s of sensors) {
     const { score } = computeSensorRisk(s);
-    if (score >= 9)      critical++;
-    else if (score >= 7) high++;
-    else if (score >= 4) caution++;
-    else                 nominal++;
+    if (score >= 8.5)      critical++;
+    else if (score >= 6.8) high++;
+    else if (score >= 4.0) caution++;
+    else                   nominal++;
   }
   return { critical, high, caution, nominal };
 }
