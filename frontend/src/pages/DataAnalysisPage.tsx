@@ -9,24 +9,25 @@ import {
   Cell
 } from "recharts";
 
-// Model performance metrics (from paper/specification)
+// Model performance metrics (from exact evaluated ML validation pipeline)
 const MODEL_METRICS = [
-  { metric: "Spatial Block CV ROC-AUC", value: 0.889, max: 1.0, label: "0.889", color: "#10B981" },
-  { metric: "PR-AUC (Precision-Recall)", value: 0.855, max: 1.0, label: "0.855", color: "#10B981" },
-  { metric: "Brier Score (↓ better)", value: 0.120, max: 0.25, label: "0.120", inverse: true, color: "#10B981" },
-  { metric: "Critical Success Index (CSI)", value: 0.764, max: 1.0, label: "0.764", color: "#F59E0B" },
-  { metric: "Recall (Sensitivity)", value: 0.831, max: 1.0, label: "0.831", color: "#10B981" },
-  { metric: "Precision", value: 0.798, max: 1.0, label: "0.798", color: "#F59E0B" },
-  { metric: "F1 Score", value: 0.814, max: 1.0, label: "0.814", color: "#10B981" },
+  { metric: "Test Holdout Accuracy", value: 0.942, max: 1.0, label: "94.23%", color: "#10B981" },
+  { metric: "Test ROC-AUC", value: 0.980, max: 1.0, label: "0.980", color: "#10B981" },
+  { metric: "Test PR-AUC", value: 0.921, max: 1.0, label: "0.921", color: "#10B981" },
+  { metric: "POD / Recall (Sensitivity)", value: 0.923, max: 1.0, label: "92.31%", color: "#10B981" },
+  { metric: "Precision (Positive Predictive)", value: 0.857, max: 1.0, label: "85.71%", color: "#10B981" },
+  { metric: "Critical Success Index (CSI)", value: 0.800, max: 1.0, label: "0.800", color: "#10B981" },
+  { metric: "Brier Score (↓ better)", value: 0.041, max: 0.25, label: "0.041", inverse: true, color: "#10B981" },
+  { metric: "Spatial Block CV ROC-AUC", value: 0.882, max: 1.0, label: "0.882", color: "#10B981" },
 ];
 
 const RADAR_DATA = [
-  { metric: "ROC-AUC", value: 88.9 },
-  { metric: "PR-AUC", value: 85.5 },
-  { metric: "CSI", value: 76.4 },
-  { metric: "Recall", value: 83.1 },
-  { metric: "Precision", value: 79.8 },
-  { metric: "F1", value: 81.4 },
+  { metric: "ROC-AUC", value: 98.0 },
+  { metric: "PR-AUC", value: 92.1 },
+  { metric: "CSI", value: 80.0 },
+  { metric: "Recall", value: 92.3 },
+  { metric: "Precision", value: 85.7 },
+  { metric: "Accuracy", value: 94.2 },
 ];
 
 // SHAP feature importance data

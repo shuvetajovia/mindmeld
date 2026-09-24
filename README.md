@@ -5,9 +5,9 @@
 [![FastAPI](https://img.shields.io/badge/FastAPI-0.110+-009688?style=flat-square&logo=fastapi)](https://fastapi.tiangolo.com/)
 [![TailwindCSS](https://img.shields.io/badge/TailwindCSS-3.4-38B2AC?style=flat-square&logo=tailwind-css)](https://tailwindcss.com/)
 [![Three.js](https://img.shields.io/badge/Three.js-3D_Terrain-black?style=flat-square&logo=three.js)](https://threejs.org/)
-[![Author](https://img.shields.io/badge/Author-A_Shuveta_Jovi-blue?style=flat-square)](https://github.com/shuvetajovia)
+[![Author](https://img.shields.io/badge/Author-Dr._R._Rajmohan-blue?style=flat-square)](https://github.com/shuvetajovia)
 
-> **Developed by: A Shuveta Jovi**  
+> **Lead Author & Principal Investigator: Dr. R. Rajmohan**  
 > An end-to-end intelligent disaster management grid designed to proactively mitigate landslide hazards in vulnerable mountainous regions through multi-tier AI fusion, satellite geomorphology (DEM), and real-time geotechnical IoT telemetry.
 
 ---
@@ -97,5 +97,6 @@ npm run dev
 
 ## 👤 Author & Credits
 
-- **A Shuveta Jovi** ([@shuvetajovia](https://github.com/shuvetajovia))
+- **Dr. R. Rajmohan** (Principal Investigator & Lead Author)
 - Project Repository: [https://github.com/shuvetajovia/mindmeld](https://github.com/shuvetajovia/mindmeld)
+

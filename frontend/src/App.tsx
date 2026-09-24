@@ -14,56 +14,45 @@ import { syncOfficerToSupabase } from "./services/supabaseClient";
 import { mockApi } from "./services/mockApi";
 import { 
   LayoutDashboard, Compass, Radio, Cpu, Smartphone, Home,
-  AlertTriangle, Clock, User, RefreshCw, X, ShieldAlert, SmartphoneNfc, Mountain, Sparkles, CheckCircle2, ShieldCheck, MapPin
+  AlertTriangle, Clock, User, RefreshCw, X, ShieldAlert, SmartphoneNfc, Mountain, Sparkles, CheckCircle2, ShieldCheck, MapPin, KeyRound, Mail, Lock
 } from "lucide-react";
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:8000";
 
-interface UserProfile {
+export interface UserProfile {
+  email: string;
   name: string;
   phone: string;
   latitude: number;
   longitude: number;
-  role?: string;
-  badge?: string;
+  role: string;
+  badge: string;
+  isOfficer: boolean;
 }
 
-const OFFICER_PRESETS = [
+// Exactly 2 Authorized Disaster Management Officers with Gmail and Password
+export const AUTHORIZED_OFFICERS = [
   {
-    role: "NDRF Sector Commander",
-    badge: "NDRF-01-NE",
-    name: "Commander A. K. Sangma",
+    email: "dr.rajmohan@gmail.com",
+    password: "MindMeld@2026",
+    name: "Dr. R. Rajmohan",
+    role: "Principal Investigator & Lead Disaster Director",
+    badge: "PI-DIRECTOR-01",
     phone: "9876543210",
-    lat: "25.6751",
-    lon: "94.1116",
-    sector: "Kohima - Imphal Highway Sector (Red Alert Proximity)",
+    lat: 26.1445,
+    lon: 91.7362,
+    sector: "Regional NER Disaster Command Center (HQ Guwahati)",
   },
   {
-    role: "SDMA Incident Officer",
-    badge: "SDMA-MEG-04",
-    name: "Dr. B. Khongwir",
+    email: "rajmohan.ner@gmail.com",
+    password: "MindMeld@2026",
+    name: "Dr. R. Rajmohan",
+    role: "Field Command & Operations Lead",
+    badge: "OPS-COMMAND-02",
     phone: "9862100451",
-    lat: "25.5788",
-    lon: "91.8933",
-    sector: "East Khasi Hills & Cherrapunji Sector",
-  },
-  {
-    role: "BRO Task Force Commander",
-    badge: "BRO-SWASTIK",
-    name: "Col. V. Sharma",
-    phone: "9434022819",
-    lat: "27.5088",
-    lon: "88.5338",
-    sector: "North Sikkim NH-10 / Mangan Corridor",
-  },
-  {
-    role: "GSI Chief Field Geologist",
-    badge: "GSI-NER-GEO",
-    name: "Dr. T. Jamir",
-    phone: "9436001284",
-    lat: "26.1445",
-    lon: "91.7362",
-    sector: "Guwahati Regional Disaster Hub",
+    lat: 25.6751,
+    lon: 94.1116,
+    sector: "Field Geotechnical & Threat Surveillance Hub (Kohima Sector)",
   }
 ];
 
@@ -89,7 +78,7 @@ const NAV_TABS = [
   { key: "routing",      label: "Safe Routing",      icon: Compass         },
   { key: "iot",          label: "IoT Sensor Grid",   icon: Radio           },
   { key: "prediction",   label: "Prediction Core",   icon: Cpu             },
-  { key: "reporting",    label: "Citizen Report",    icon: Smartphone      },
+  { key: "reporting",    label: "Incident Log",      icon: Smartphone      },
 ] as const;
 
 type TabKey = typeof NAV_TABS[number]["key"];
@@ -111,12 +100,12 @@ function App() {
       return null;
     }
   });
-  const [activeLoginTab, setActiveLoginTab] = useState<"preset" | "custom">("preset");
-  const [inputName, setInputName] = useState<string>("");
-  const [inputPhone, setInputPhone] = useState<string>("");
-  const [inputLat, setInputLat] = useState<string>("");
-  const [inputLon, setInputLon] = useState<string>("");
+
+  const [inputEmail, setInputEmail] = useState<string>("");
+  const [inputPassword, setInputPassword] = useState<string>("");
+  const [authError, setAuthError] = useState<string | null>(null);
   const [isSyncing, setIsSyncing] = useState<boolean>(false);
+
 
   // Proximity Alert Banner States
   const [activeProximityAlert, setActiveProximityAlert] = useState<{
@@ -131,6 +120,7 @@ function App() {
     setUserProfile(profile);
     localStorage.setItem("mindmeld_officer_user", JSON.stringify(profile));
     setLoginModalOpen(false);
+    setAuthError(null);
     setIsSyncing(true);
     await syncOfficerToSupabase({
       name: profile.name,
@@ -139,8 +129,48 @@ function App() {
       longitude: profile.longitude,
     });
     setIsSyncing(false);
-    setSmsToast(`🛡️ Officer Verified: ${profile.name} registered with live GPS geofencing.`);
+    setSmsToast(`🛡️ Officer Verified: ${profile.name} (${profile.email}) authenticated.`);
     setTimeout(() => setSmsToast(null), 4000);
+  };
+
+  const handleOfficerLoginSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setAuthError(null);
+    const officer = AUTHORIZED_OFFICERS.find(
+      (o) => o.email.trim().toLowerCase() === inputEmail.trim().toLowerCase()
+    );
+
+    if (!officer) {
+      setAuthError("Unauthorized email. Only authorized disaster management accounts (dr.rajmohan@gmail.com or rajmohan.ner@gmail.com) can access.");
+      return;
+    }
+
+    if (officer.password !== inputPassword) {
+      setAuthError("Invalid password for officer " + officer.name + ".");
+      return;
+    }
+
+    const profile: UserProfile = {
+      email: officer.email,
+      name: officer.name,
+      phone: officer.phone,
+      latitude: officer.lat,
+      longitude: officer.lon,
+      role: officer.role,
+      badge: officer.badge,
+      isOfficer: true
+    };
+
+    await saveAndApplyProfile(profile);
+  };
+
+  const fillOfficerCredentials = (email: string) => {
+    const officer = AUTHORIZED_OFFICERS.find((o) => o.email === email);
+    if (officer) {
+      setInputEmail(officer.email);
+      setInputPassword(officer.password);
+      setAuthError(null);
+    }
   };
 
   const handleLogout = () => {
@@ -150,7 +180,6 @@ function App() {
     setSmsToast("Officer session cleared.");
     setTimeout(() => setSmsToast(null), 3000);
   };
-
 
   // IST Clock
   useEffect(() => {
@@ -183,34 +212,49 @@ function App() {
     return () => clearInterval(timer);
   }, [refresh]);
 
-  // GPS capture
-  const captureUserLocation = () => {
-    if (navigator.geolocation) {
-      navigator.geolocation.getCurrentPosition(
-        (pos) => {
-          setInputLat(pos.coords.latitude.toFixed(5));
-          setInputLon(pos.coords.longitude.toFixed(5));
-        },
-        () => {
-          setInputLat("26.1445");
-          setInputLon("91.7362");
-        }
-      );
+  // Proximity alert computation using ML-based risk from sensor data
+  useEffect(() => {
+    if (!userProfile || sensors.length === 0) {
+      setActiveProximityAlert(null);
+      return;
     }
-  };
 
-  const handleCustomLoginSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!inputName || !inputPhone) return;
-    const profile: UserProfile = {
-      name: inputName,
-      phone: inputPhone,
-      latitude: parseFloat(inputLat) || 26.1445,
-      longitude: parseFloat(inputLon) || 91.7362,
-      role: "Field Response Officer",
-      badge: "DUTY-ACTIVE"
-    };
-    await saveAndApplyProfile(profile);
+    let closestAlertNode: any = null;
+    let minDistance = Infinity;
+
+    sensors.forEach(node => {
+      const SM = node.soil_moisture;
+      const rain = node.rain_24h_obs;
+      const pore = Math.min(120, SM * 0.9);
+      const incl = Math.min(0.12, pore * 0.00055 + rain * 0.00025);
+      const tVal = 0.018 * rain + 0.005 * node.api_7d + 0.022 * pore + 20.0 * incl - 1.95;
+      const prob = 1 / (1 + Math.exp(-tVal));
+      const risk = prob > 0.80 ? 9.2 : prob > 0.50 ? 7.5 : prob > 0.15 ? 5.2 : 2.0;
+
+      if (risk >= 7.0) {
+        const dist = computeDistance(userProfile.latitude, userProfile.longitude, node.latitude, node.longitude);
+        if (dist < minDistance) {
+          minDistance = dist;
+          closestAlertNode = {
+            distance: parseFloat(dist.toFixed(1)),
+            locationName: node.name,
+            riskScore: risk
+          };
+        }
+      }
+    });
+
+    if (closestAlertNode && minDistance <= 15.0) {
+      setActiveProximityAlert(closestAlertNode);
+    } else {
+      setActiveProximityAlert(null);
+    }
+  }, [userProfile, sensors]);
+
+  const triggerSmsSimulation = () => {
+    if (!userProfile || !activeProximityAlert) return;
+    setSmsToast(`📲 SMS ALERT TRANSMITTED: Warning dispatch sent to +91-${userProfile.phone}. Hazard zone at ${activeProximityAlert.locationName} is ${activeProximityAlert.distance} km away.`);
+    setTimeout(() => setSmsToast(null), 5000);
   };
 
   return (
@@ -230,7 +274,7 @@ function App() {
                 MindMeld AI Landslide Resilience Grid
               </h1>
               <p className="text-[11px] font-semibold text-textSecondary">
-                AI Early Warning System • Developed by A Shuveta Jovi
+                AI Early Warning System • Lead Author & PI: <span className="text-blue-600 font-bold">Dr. R. Rajmohan</span>
               </p>
             </div>
           </div>
@@ -290,7 +334,7 @@ function App() {
             </div>
           ) : (
             <button
-              onClick={() => { captureUserLocation(); setLoginModalOpen(true); }}
+              onClick={() => { setAuthError(null); setLoginModalOpen(true); }}
               className="px-3.5 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-[10px] font-black uppercase transition shadow-md shadow-blue-500/10 flex items-center gap-1.5"
             >
               <ShieldCheck className="w-3.5 h-3.5" /> Officer Login
@@ -348,16 +392,16 @@ function App() {
         <p className="font-black uppercase tracking-widest text-[9px] text-textMuted">
           MindMeld • AI Landslide Early Warning & Regional Resilience Network Grid
         </p>
-        <p className="font-semibold">Developed & Designed by <span className="text-blue-600 font-bold">A Shuveta Jovi</span></p>
+        <p className="font-semibold">Principal Investigator & Lead Author: <span className="text-blue-600 font-bold">Dr. R. Rajmohan</span></p>
         <p className="text-textMuted text-[9px]">
           Multi-Tier ML Threat Engine • Real-time IoT Telemetry • Dynamic Route Optimization • Offline-Resilient
         </p>
       </footer>
 
-      {/* ── OFFICER LOGIN MODAL ─────────────────────────────────────────── */}
+      {/* ── 2-OFFICER GMAIL & PASSWORD LOGIN MODAL ───────────────────────── */}
       {loginModalOpen && (
         <div className="fixed inset-0 z-[99999] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fadeIn">
-          <div className="glass-panel bg-bgCard border border-borderColor rounded-3xl p-6 w-full max-w-lg shadow-2xl space-y-4 animate-slideUp text-textPrimary">
+          <div className="glass-panel bg-bgCard border border-borderColor rounded-3xl p-6 w-full max-w-md shadow-2xl space-y-4 animate-slideUp text-textPrimary">
             <div className="flex justify-between items-start border-b border-borderColor pb-3">
               <div>
                 <div className="flex items-center gap-2">
@@ -365,11 +409,11 @@ function App() {
                     <ShieldCheck className="w-4 h-4" />
                   </span>
                   <h3 className="font-black text-sm text-textPrimary uppercase tracking-wide">
-                    Disaster Management Officer Portal
+                    Authorized Officer Portal
                   </h3>
                 </div>
                 <p className="text-[10px] text-textSecondary mt-0.5">
-                  Synchronize officer profile with Supabase DB for geofenced proximity alerting
+                  Restricted to 2 authorized disaster management directors via Gmail & Password
                 </p>
               </div>
               <button onClick={() => setLoginModalOpen(false)}
@@ -378,166 +422,85 @@ function App() {
               </button>
             </div>
 
-            {/* Toggle Login Method */}
-            <div className="flex bg-bgPrimary p-1 rounded-xl border border-borderColor gap-1 text-[10px] font-black uppercase">
-              <button
-                type="button"
-                onClick={() => setActiveLoginTab("preset")}
-                className={`flex-1 py-1.5 rounded-lg transition ${
-                  activeLoginTab === "preset"
-                    ? "bg-blue-600 text-white shadow-sm"
-                    : "text-textSecondary hover:text-textPrimary"
-                }`}
-              >
-                Official Duty Roster (1-Click)
-              </button>
-              <button
-                type="button"
-                onClick={() => setActiveLoginTab("custom")}
-                className={`flex-1 py-1.5 rounded-lg transition ${
-                  activeLoginTab === "custom"
-                    ? "bg-blue-600 text-white shadow-sm"
-                    : "text-textSecondary hover:text-textPrimary"
-                }`}
-              >
-                Custom Officer / GPS
-              </button>
-            </div>
-
-            {activeLoginTab === "preset" ? (
-              <div className="space-y-2.5 pt-1 max-h-[320px] overflow-y-auto pr-1">
-                <p className="text-[10px] font-semibold text-textMuted">
-                  Select your active operational sector to initialize automatic proximity hazard telemetry:
-                </p>
-                {OFFICER_PRESETS.map((preset, idx) => (
-                  <div
-                    key={idx}
-                    onClick={() =>
-                      saveAndApplyProfile({
-                        name: preset.name,
-                        phone: preset.phone,
-                        latitude: parseFloat(preset.lat),
-                        longitude: parseFloat(preset.lon),
-                        role: preset.role,
-                        badge: preset.badge
-                      })
-                    }
-                    className="p-3 bg-bgPrimary hover:bg-blue-600/10 border border-borderColor hover:border-blue-500 rounded-2xl cursor-pointer transition flex items-center justify-between group"
+            {/* Quick 1-Click Credentials Select */}
+            <div className="space-y-1.5">
+              <label className="text-[9px] font-black text-textMuted uppercase tracking-wider block">
+                Select Authorized Officer Account:
+              </label>
+              <div className="grid grid-cols-1 gap-2">
+                {AUTHORIZED_OFFICERS.map((officer) => (
+                  <button
+                    key={officer.email}
+                    type="button"
+                    onClick={() => fillOfficerCredentials(officer.email)}
+                    className={`p-2.5 rounded-xl border text-left transition flex items-center justify-between ${
+                      inputEmail === officer.email
+                        ? "bg-blue-600/10 border-blue-500 shadow-sm"
+                        : "bg-bgPrimary border-borderColor hover:border-borderColor/80"
+                    }`}
                   >
-                    <div className="space-y-0.5">
-                      <div className="flex items-center gap-2">
-                        <span className="text-xs font-black text-textPrimary group-hover:text-blue-500">
-                          {preset.name}
-                        </span>
-                        <span className="px-1.5 py-0.5 rounded bg-blue-600/15 text-blue-500 font-mono text-[8px] font-bold">
-                          {preset.badge}
+                    <div>
+                      <div className="text-xs font-black text-textPrimary flex items-center gap-1.5">
+                        {officer.name}
+                        <span className="text-[8px] px-1.5 py-0.2 rounded bg-blue-600/15 text-blue-500 font-mono font-bold">
+                          {officer.badge}
                         </span>
                       </div>
-                      <div className="text-[10px] font-semibold text-textSecondary">
-                        {preset.role} • <span className="font-mono">+91-{preset.phone}</span>
-                      </div>
-                      <div className="text-[9px] font-medium text-textMuted flex items-center gap-1">
-                        <MapPin className="w-2.5 h-2.5 text-blue-500" /> {preset.sector}
+                      <div className="text-[10px] font-semibold text-textSecondary font-mono mt-0.5">
+                        {officer.email}
                       </div>
                     </div>
-                    <button className="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-[9px] font-black uppercase transition shrink-0">
-                      Login
-                    </button>
-                  </div>
+                    <span className="text-[9px] font-bold text-blue-600">Select</span>
+                  </button>
                 ))}
               </div>
-            ) : (
-              <form onSubmit={handleCustomLoginSubmit} className="space-y-3 pt-1">
-                <div>
-                  <label className="text-[9px] font-bold text-textMuted uppercase tracking-wider block mb-1">
-                    Officer / Responder Name
-                  </label>
-                  <input
-                    type="text"
-                    required
-                    placeholder="e.g. Insp. Lalrintluanga (Mizoram DM)"
-                    value={inputName}
-                    onChange={(e) => setInputName(e.target.value)}
-                    className="w-full px-3 py-2 rounded-xl bg-bgPrimary border border-borderColor text-xs font-semibold text-textPrimary focus:outline-none focus:border-blue-600"
-                  />
-                </div>
+            </div>
 
-                <div>
-                  <label className="text-[9px] font-bold text-textMuted uppercase tracking-wider block mb-1">
-                    Mobile Number (SMS warning channel)
-                  </label>
-                  <input
-                    type="tel"
-                    required
-                    pattern="[0-9]{10}"
-                    placeholder="10-Digit Mobile Phone"
-                    value={inputPhone}
-                    onChange={(e) => setInputPhone(e.target.value)}
-                    className="w-full px-3 py-2 rounded-xl bg-bgPrimary border border-borderColor text-xs font-semibold text-textPrimary focus:outline-none focus:border-blue-600 font-mono"
-                  />
-                </div>
+            {/* Login Form */}
+            <form onSubmit={handleOfficerLoginSubmit} className="space-y-3 pt-2">
+              <div>
+                <label className="text-[9px] font-bold text-textMuted uppercase tracking-wider block mb-1 flex items-center gap-1">
+                  <Mail className="w-3 h-3 text-blue-500" /> Officer Gmail Address
+                </label>
+                <input
+                  type="email"
+                  required
+                  placeholder="e.g. dr.rajmohan@gmail.com"
+                  value={inputEmail}
+                  onChange={(e) => setInputEmail(e.target.value)}
+                  className="w-full px-3 py-2 rounded-xl bg-bgPrimary border border-borderColor text-xs font-semibold text-textPrimary focus:outline-none focus:border-blue-600 font-mono"
+                />
+              </div>
 
-                <div className="grid grid-cols-2 gap-3">
-                  <div>
-                    <label className="text-[9px] font-bold text-textMuted uppercase tracking-wider block mb-1">
-                      Latitude
-                    </label>
-                    <input
-                      type="text"
-                      required
-                      placeholder="e.g. 25.6760"
-                      value={inputLat}
-                      onChange={(e) => setInputLat(e.target.value)}
-                      className="w-full px-3 py-2 rounded-xl bg-bgPrimary border border-borderColor text-xs font-semibold text-textPrimary focus:outline-none font-mono"
-                    />
-                  </div>
-                  <div>
-                    <label className="text-[9px] font-bold text-textMuted uppercase tracking-wider block mb-1">
-                      Longitude
-                    </label>
-                    <input
-                      type="text"
-                      required
-                      placeholder="e.g. 94.1120"
-                      value={inputLon}
-                      onChange={(e) => setInputLon(e.target.value)}
-                      className="w-full px-3 py-2 rounded-xl bg-bgPrimary border border-borderColor text-xs font-semibold text-textPrimary focus:outline-none font-mono"
-                    />
-                  </div>
-                </div>
+              <div>
+                <label className="text-[9px] font-bold text-textMuted uppercase tracking-wider block mb-1 flex items-center gap-1">
+                  <Lock className="w-3 h-3 text-blue-500" /> Secure Password
+                </label>
+                <input
+                  type="password"
+                  required
+                  placeholder="Enter officer password"
+                  value={inputPassword}
+                  onChange={(e) => setInputPassword(e.target.value)}
+                  className="w-full px-3 py-2 rounded-xl bg-bgPrimary border border-borderColor text-xs font-semibold text-textPrimary focus:outline-none focus:border-blue-600 font-mono"
+                />
+              </div>
 
-                <div className="flex gap-2 pt-1">
-                  <button
-                    type="button"
-                    onClick={captureUserLocation}
-                    className="w-1/2 py-2 bg-bgPrimary hover:bg-borderColor/40 border border-borderColor text-[9px] font-black uppercase rounded-xl transition text-textSecondary flex items-center justify-center gap-1"
-                  >
-                    <MapPin className="w-3 h-3 text-blue-500" /> Detect Live GPS
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setInputName("Simulated Officer");
-                      setInputPhone("9988776655");
-                      setInputLat("25.6760");
-                      setInputLon("94.1120");
-                    }}
-                    className="w-1/2 py-2 bg-bgPrimary hover:bg-borderColor/40 border border-borderColor text-[9px] font-black uppercase rounded-xl transition text-alertRed"
-                  >
-                    Set Kohima Red Zone
-                  </button>
+              {authError && (
+                <div className="p-2.5 rounded-xl bg-alertRed/10 border border-alertRed/25 text-alertRed text-[10px] font-bold leading-snug">
+                  ⚠️ {authError}
                 </div>
+              )}
 
-                <button
-                  type="submit"
-                  disabled={isSyncing}
-                  className="w-full py-2.5 bg-blue-600 hover:bg-blue-700 text-white text-[10px] font-black uppercase rounded-xl transition shadow-md shadow-blue-500/10 flex items-center justify-center gap-1.5"
-                >
-                  <ShieldCheck className="w-4 h-4" />
-                  {isSyncing ? "Syncing with Supabase..." : "Verify & Connect Officer"}
-                </button>
-              </form>
-            )}
+              <button
+                type="submit"
+                disabled={isSyncing}
+                className="w-full py-2.5 bg-blue-600 hover:bg-blue-700 text-white text-[10px] font-black uppercase rounded-xl transition shadow-md shadow-blue-500/10 flex items-center justify-center gap-1.5"
+              >
+                <ShieldCheck className="w-4 h-4" />
+                {isSyncing ? "Verifying Credentials..." : "Authenticate & Connect Officer"}
+              </button>
+            </form>
           </div>
         </div>
       )}
@@ -547,3 +510,4 @@ function App() {
 }
 
 export default App;
+

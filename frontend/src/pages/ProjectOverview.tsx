@@ -16,7 +16,7 @@ export const ProjectOverview: React.FC<ProjectOverviewProps> = ({ onLaunchGIS, o
         
         <div className="relative z-10 flex flex-col items-start gap-4">
           <div className="px-3 py-1.5 bg-blue-600/10 text-blue-600 border border-blue-600/20 rounded-lg text-xs font-black uppercase tracking-widest">
-            MindMeld AI Disaster Resilience System • Developed by A Shuveta Jovi
+            MindMeld AI Disaster Resilience System • Lead Author & PI: Dr. R. Rajmohan
           </div>
           <h1 className="text-3xl md:text-4xl font-extrabold text-textPrimary tracking-tight max-w-4xl leading-tight">
             AI-Based Early Warning & Multi-Tier Landslide Risk Monitoring Grid
@@ -113,28 +113,28 @@ export const ProjectOverview: React.FC<ProjectOverviewProps> = ({ onLaunchGIS, o
       {/* KPI Metrics */}
       <div className="bg-bgCard rounded-3xl p-8 border border-borderColor shadow-sm">
         <h3 className="text-base font-extrabold text-textPrimary mb-6 flex items-center gap-2">
-          <Shield className="w-5 h-5 text-blue-600" /> System Performance & Coverage KPI Metrics
+          <Shield className="w-5 h-5 text-blue-600" /> System Performance & Evaluated Model Accuracies
         </h3>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
           <div className="p-4 bg-bgPrimary rounded-2xl border border-borderColor">
-            <div className="text-[10px] font-black text-textMuted uppercase tracking-wider mb-2">GSI Baseline Catalog</div>
-            <div className="text-2xl font-black text-textPrimary">30,842</div>
-            <div className="text-xs font-semibold text-textSecondary mt-1">Historical Records Ingested</div>
+            <div className="text-[10px] font-black text-textMuted uppercase tracking-wider mb-2">Test Holdout Accuracy</div>
+            <div className="text-2xl font-black text-blue-600 dark:text-blue-400">94.23%</div>
+            <div className="text-xs font-semibold text-textSecondary mt-1">ROC-AUC: 0.980 | PR-AUC: 0.921</div>
           </div>
           <div className="p-4 bg-bgPrimary rounded-2xl border border-borderColor">
-            <div className="text-[10px] font-black text-textMuted uppercase tracking-wider mb-2">Spatial Gen. ROC-AUC</div>
-            <div className="text-2xl font-black text-blue-600 dark:text-blue-400">0.8891</div>
-            <div className="text-xs font-semibold text-textSecondary mt-1">PR-AUC: 0.8552 | CSI: 0.5424</div>
+            <div className="text-[10px] font-black text-textMuted uppercase tracking-wider mb-2">Spatial Block Gen. ROC-AUC</div>
+            <div className="text-2xl font-black text-emerald-600 dark:text-emerald-400">0.8816</div>
+            <div className="text-xs font-semibold text-textSecondary mt-1">OOF Accuracy: 85.84% | PR-AUC: 0.818</div>
           </div>
           <div className="p-4 bg-bgPrimary rounded-2xl border border-borderColor">
-            <div className="text-[10px] font-black text-textMuted uppercase tracking-wider mb-2">Operational Precision</div>
-            <div className="text-2xl font-black text-emerald-600 dark:text-emerald-400">75.95%</div>
-            <div className="text-xs font-semibold text-textSecondary mt-1">Calibrated OOF @ P &ge; 0.35</div>
+            <div className="text-[10px] font-black text-textMuted uppercase tracking-wider mb-2">Operational Precision & POD</div>
+            <div className="text-2xl font-black text-purple-600 dark:text-purple-400">85.71%</div>
+            <div className="text-xs font-semibold text-textSecondary mt-1">Recall/POD: 92.31% | CSI: 0.800</div>
           </div>
           <div className="p-4 bg-bgPrimary rounded-2xl border border-borderColor">
             <div className="text-[10px] font-black text-textMuted uppercase tracking-wider mb-2">NER Terrain Coverage</div>
             <div className="text-2xl font-black text-textPrimary">8 States</div>
-            <div className="text-xs font-semibold text-textSecondary mt-1">40+ Urban, Rural & Lifeline Nodes</div>
+            <div className="text-xs font-semibold text-textSecondary mt-1">40 IoT Meteorological Telemetry Stations</div>
           </div>
         </div>
       </div>

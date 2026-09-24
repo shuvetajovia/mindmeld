@@ -414,12 +414,6 @@ export const Dashboard: React.FC<DashboardProps> = ({ apiBaseUrl }) => {
                   <span className="flex items-center gap-1"><span className="w-2.5 h-2.5 rounded-full bg-alertOrange inline-block"></span> Warning</span>
                   <span className="flex items-center gap-1"><span className="w-2.5 h-2.5 rounded-full bg-alertRed inline-block"></span> Critical</span>
                 </div>
-                <button
-                  onClick={() => setSarOpen(true)}
-                  className="px-2.5 py-1.5 bg-indigo-600/10 hover:bg-indigo-600/20 border border-indigo-500/25 text-indigo-600 rounded-lg text-[9px] font-black uppercase tracking-wider transition flex items-center gap-1.5"
-                >
-                  <Satellite className="w-3.5 h-3.5" /> SAR Inspector
-                </button>
               </div>
             </div>
             
