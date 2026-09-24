@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useRef } from "react";
 import { Navigation, MapPin, Compass, ShieldAlert, ShieldCheck, Route, Zap } from "lucide-react";
 import { SafeRouteResponse } from "../types/routing";
 import { CorridorData } from "../hooks/useLiveTelemetry";
@@ -30,9 +30,19 @@ export const RoutePlanner: React.FC<RoutePlannerProps> = ({
   const [routeResult, setRouteResult] = useState<SafeRouteResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
 
+  // Keep references to prevent re-creation loops
+  const onRouteComputedRef = useRef(onRouteComputed);
+  onRouteComputedRef.current = onRouteComputed;
+
+  const corridorsRef = useRef(corridors);
+  corridorsRef.current = corridors;
+
+  const lastCalculatedKeyRef = useRef<string>("");
+
   const executeRouteCalculation = useCallback(async (origCity: string, destCity: string, sensitivity: number) => {
     if (origCity === destCity) {
       setError("Origin and Destination cannot be the same junction point.");
+      setLoading(false);
       return;
     }
 
@@ -41,36 +51,43 @@ export const RoutePlanner: React.FC<RoutePlannerProps> = ({
 
     try {
       // 1. Calculate authentic OpenStreetMap road highway geometry via OSRM
-      const osrmResult = await computeOSRMSafeRoute(origCity, destCity, sensitivity, corridors);
+      const osrmResult = await computeOSRMSafeRoute(origCity, destCity, sensitivity, corridorsRef.current);
       setRouteResult(osrmResult);
-      onRouteComputed(osrmResult);
+      if (onRouteComputedRef.current) {
+        onRouteComputedRef.current(osrmResult);
+      }
     } catch (err: any) {
       console.warn("[RoutePlanner] OSRM routing failed, falling back to local solver:", err);
       try {
-        const fallback = await computeOSRMSafeRoute(origCity, destCity, sensitivity, corridors);
+        const fallback = await computeOSRMSafeRoute(origCity, destCity, sensitivity, corridorsRef.current);
         setRouteResult(fallback);
-        onRouteComputed(fallback);
+        if (onRouteComputedRef.current) {
+          onRouteComputedRef.current(fallback);
+        }
       } catch (finalErr: any) {
         setError(finalErr?.message || "Route calculation error");
       }
     } finally {
       setLoading(false);
     }
-  }, [corridors, onRouteComputed]);
+  }, []);
 
   // Handle incoming route params from Command Center alert cards
   useEffect(() => {
     if (initialOrigin && initialDestination) {
       setOrigin(initialOrigin);
       setDestination(initialDestination);
-      if (autoCalculate) {
+      const reqKey = `${initialOrigin}-->${initialDestination}--${alpha}`;
+      if (autoCalculate && lastCalculatedKeyRef.current !== reqKey) {
+        lastCalculatedKeyRef.current = reqKey;
         executeRouteCalculation(initialOrigin, initialDestination, alpha);
       }
     }
-  }, [initialOrigin, initialDestination, autoCalculate, executeRouteCalculation, alpha]);
+  }, [initialOrigin, initialDestination, autoCalculate, alpha, executeRouteCalculation]);
 
   const handleComputeRoute = async (e: React.FormEvent) => {
     e.preventDefault();
+    lastCalculatedKeyRef.current = `${origin}-->${destination}--${alpha}`;
     await executeRouteCalculation(origin, destination, alpha);
   };
 

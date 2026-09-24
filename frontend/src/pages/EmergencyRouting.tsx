@@ -15,6 +15,10 @@ export const EmergencyRouting: React.FC<EmergencyRoutingProps> = ({ apiBaseUrl, 
   const { sensors, corridors, alerts } = useLiveTelemetry(apiBaseUrl, 15000);
   const [activeRoute, setActiveRoute] = useState<SafeRouteResponse | null>(null);
 
+  const handleRouteComputed = React.useCallback((route: SafeRouteResponse) => {
+    setActiveRoute(route);
+  }, []);
+
   return (
     <div className="p-6 space-y-6 max-w-[1600px] mx-auto text-textPrimary flex flex-col min-h-[calc(100vh-100px)]">
       {/* Alert ticker banner */}
@@ -31,7 +35,7 @@ export const EmergencyRouting: React.FC<EmergencyRoutingProps> = ({ apiBaseUrl, 
             initialOrigin={initialRouteParams?.origin}
             initialDestination={initialRouteParams?.destination}
             autoCalculate={initialRouteParams?.autoCalculate ?? false}
-            onRouteComputed={(route) => setActiveRoute(route)} 
+            onRouteComputed={handleRouteComputed} 
           />
         </div>
 
