@@ -3,10 +3,10 @@ import { Network, Server, Shield, BrainCircuit, Users, CheckCircle2, ArrowRight,
 
 interface ProjectOverviewProps {
   onLaunchGIS: () => void;
-  onLaunchSimulation?: () => void;
+  onLaunchPrediction?: () => void;
 }
 
-export const ProjectOverview: React.FC<ProjectOverviewProps> = ({ onLaunchGIS, onLaunchSimulation }) => {
+export const ProjectOverview: React.FC<ProjectOverviewProps> = ({ onLaunchGIS, onLaunchPrediction }) => {
   return (
     <div className="p-6 max-w-[1600px] mx-auto text-textPrimary space-y-8 animate-fadeIn">
       {/* Header Section */}
@@ -32,12 +32,12 @@ export const ProjectOverview: React.FC<ProjectOverviewProps> = ({ onLaunchGIS, o
             >
               Launch Live GIS Command Center <ArrowRight className="w-5 h-5" />
             </button>
-            {onLaunchSimulation && (
+            {onLaunchPrediction && (
               <button 
-                onClick={onLaunchSimulation}
-                className="px-6 py-3.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-sm font-black uppercase transition-all shadow-xl shadow-emerald-600/20 flex items-center gap-2"
+                onClick={onLaunchPrediction}
+                className="px-6 py-3.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-sm font-black uppercase transition-all shadow-xl shadow-indigo-600/20 flex items-center gap-2"
               >
-                Launch Indian NER 3D Simulation 🏔️
+                Launch Prediction Core (Parameter Hazard Engine) 🧮
               </button>
             )}
           </div>
