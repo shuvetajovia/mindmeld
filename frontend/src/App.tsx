@@ -30,29 +30,29 @@ export interface UserProfile {
   isOfficer: boolean;
 }
 
-// Exactly 2 Authorized Disaster Management Officers with Gmail and Password
+// Exactly 2 Authorized Disaster Management Field Officers with Gmail and Password
 export const AUTHORIZED_OFFICERS = [
   {
-    email: "dr.rajmohan@gmail.com",
+    email: "officer.sharma@gmail.com",
     password: "MindMeld@2026",
-    name: "Dr. R. Rajmohan",
-    role: "Principal Investigator & Lead Disaster Director",
-    badge: "PI-DIRECTOR-01",
+    name: "Officer Vikram Sharma",
+    role: "State Disaster Management Officer (SDMA)",
+    badge: "SDMA-DISASTER-01",
     phone: "9876543210",
     lat: 26.1445,
     lon: 91.7362,
-    sector: "Regional NER Disaster Command Center (HQ Guwahati)",
+    sector: "Regional NER Disaster Command Base (HQ Guwahati)",
   },
   {
-    email: "rajmohan.ner@gmail.com",
+    email: "officer.debbarma@gmail.com",
     password: "MindMeld@2026",
-    name: "Dr. R. Rajmohan",
-    role: "Field Command & Operations Lead",
-    badge: "OPS-COMMAND-02",
+    name: "Officer Rajesh Debbarma",
+    role: "NER Field Emergency Coordinator (NDRF)",
+    badge: "NDRF-TACTICAL-02",
     phone: "9862100451",
-    lat: 25.6751,
-    lon: 94.1116,
-    sector: "Field Geotechnical & Threat Surveillance Hub (Kohima Sector)",
+    lat: 24.8333,
+    lon: 92.7789,
+    sector: "Silchar-Cachar Sector Operations",
   }
 ];
 
@@ -105,7 +105,7 @@ function App() {
   const [inputPassword, setInputPassword] = useState<string>("");
   const [authError, setAuthError] = useState<string | null>(null);
   const [isSyncing, setIsSyncing] = useState<boolean>(false);
-
+  const [gpsStatus, setGpsStatus] = useState<string>("Standby");
 
   // Proximity Alert Banner States
   const [activeProximityAlert, setActiveProximityAlert] = useState<{
@@ -115,6 +115,45 @@ function App() {
   } | null>(null);
   const [smsToast, setSmsToast] = useState<string | null>(null);
 
+  // Live GPS Fetcher Function
+  const requestLiveGPS = (currentProfile?: UserProfile): Promise<{ lat: number; lon: number } | null> => {
+    return new Promise((resolve) => {
+      if (!navigator.geolocation) {
+        setGpsStatus("GPS Unavailable");
+        resolve(null);
+        return;
+      }
+      setGpsStatus("Acquiring Live GPS...");
+      navigator.geolocation.getCurrentPosition(
+        async (position) => {
+          const lat = parseFloat(position.coords.latitude.toFixed(5));
+          const lon = parseFloat(position.coords.longitude.toFixed(5));
+          setGpsStatus(`${lat}°N, ${lon}°E`);
+
+          const target = currentProfile || userProfile;
+          if (target) {
+            const updated: UserProfile = { ...target, latitude: lat, longitude: lon };
+            setUserProfile(updated);
+            localStorage.setItem("mindmeld_officer_user", JSON.stringify(updated));
+            await syncOfficerToSupabase({
+              name: updated.name,
+              phone: updated.phone,
+              latitude: lat,
+              longitude: lon
+            });
+          }
+          resolve({ lat, lon });
+        },
+        (err) => {
+          console.warn("[Live GPS] Geolocation permission denied or unavailable:", err.message);
+          setGpsStatus("Default Base GPS");
+          resolve(null);
+        },
+        { enableHighAccuracy: true, timeout: 8000, maximumAge: 60000 }
+      );
+    });
+  };
+
   // Load / Sync profile
   const saveAndApplyProfile = async (profile: UserProfile) => {
     setUserProfile(profile);
@@ -122,14 +161,20 @@ function App() {
     setLoginModalOpen(false);
     setAuthError(null);
     setIsSyncing(true);
+
+    // Fetch Live Device GPS on login
+    const liveCoords = await requestLiveGPS(profile);
+    const finalLat = liveCoords ? liveCoords.lat : profile.latitude;
+    const finalLon = liveCoords ? liveCoords.lon : profile.longitude;
+
     await syncOfficerToSupabase({
       name: profile.name,
       phone: profile.phone,
-      latitude: profile.latitude,
-      longitude: profile.longitude,
+      latitude: finalLat,
+      longitude: finalLon,
     });
     setIsSyncing(false);
-    setSmsToast(`🛡️ Officer Verified: ${profile.name} (${profile.email}) authenticated.`);
+    setSmsToast(`🛡️ Officer Verified: ${profile.name} authenticated with Live GPS.`);
     setTimeout(() => setSmsToast(null), 4000);
   };
 
@@ -141,12 +186,12 @@ function App() {
     );
 
     if (!officer) {
-      setAuthError("Unauthorized email. Only authorized disaster management accounts (dr.rajmohan@gmail.com or rajmohan.ner@gmail.com) can access.");
+      setAuthError("Unauthorized email. Only authorized disaster management accounts (officer.sharma@gmail.com or officer.debbarma@gmail.com) can access.");
       return;
     }
 
     if (officer.password !== inputPassword) {
-      setAuthError("Invalid password for officer " + officer.name + ".");
+      setAuthError("Invalid password for " + officer.name + ".");
       return;
     }
 
@@ -177,9 +222,17 @@ function App() {
     localStorage.removeItem("mindmeld_officer_user");
     setUserProfile(null);
     setActiveProximityAlert(null);
+    setGpsStatus("Standby");
     setSmsToast("Officer session cleared.");
     setTimeout(() => setSmsToast(null), 3000);
   };
+
+  // Trigger GPS scan once on mount if user is already logged in
+  useEffect(() => {
+    if (userProfile) {
+      requestLiveGPS(userProfile);
+    }
+  }, []);
 
   // IST Clock
   useEffect(() => {
@@ -212,7 +265,7 @@ function App() {
     return () => clearInterval(timer);
   }, [refresh]);
 
-  // Proximity alert computation using ML-based risk from sensor data
+  // Proximity alert computation using ML-based risk from sensor data and Live GPS
   useEffect(() => {
     if (!userProfile || sensors.length === 0) {
       setActiveProximityAlert(null);
@@ -225,11 +278,21 @@ function App() {
     sensors.forEach(node => {
       const SM = node.soil_moisture;
       const rain = node.rain_24h_obs;
+      const isExtremeHotspot = [
+        'SN-MEG-CHE-01', 'SN-MEG-MAW-01', 'SN-SKM-CHU-01', 'SN-SKM-MAN-01', 'SN-SKM-DZO-01',
+        'SN-ASM-DH-01', 'SN-ASM-RRL-01', 'SN-NGL-KOH-01', 'SN-MZR-AIZ-01', 'SN-ARN-TAW-01',
+        'SN-MNP-TAM-01'
+      ].includes(node.id);
+
       const pore = Math.min(120, SM * 0.9);
       const incl = Math.min(0.12, pore * 0.00055 + rain * 0.00025);
       const tVal = 0.018 * rain + 0.005 * node.api_7d + 0.022 * pore + 20.0 * incl - 1.95;
       const prob = 1 / (1 + Math.exp(-tVal));
-      const risk = prob > 0.80 ? 9.2 : prob > 0.50 ? 7.5 : prob > 0.15 ? 5.2 : 2.0;
+      
+      let risk = 2.0;
+      if (isExtremeHotspot) {
+        risk = prob > 0.80 ? 9.2 : prob > 0.50 ? 7.5 : prob > 0.15 ? 5.2 : 2.0;
+      }
 
       if (risk >= 7.0) {
         const dist = computeDistance(userProfile.latitude, userProfile.longitude, node.latitude, node.longitude);
@@ -311,20 +374,34 @@ function App() {
           <div className="hidden lg:block"><ThemeToggle /></div>
           {userProfile ? (
             <div className="flex items-center gap-2">
+              {/* Officer Badge & Live GPS */}
               <div className="flex items-center gap-2 bg-emerald-500/10 border border-emerald-500/25 px-3 py-1.5 rounded-xl">
                 <span className="relative flex h-2 w-2">
                   <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
                   <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
                 </span>
                 <div className="text-left">
-                  <div className="text-[10px] font-black text-emerald-500 leading-none">
+                  <div className="text-[10px] font-black text-emerald-500 leading-none flex items-center gap-1">
                     {userProfile.name}
+                    <span className="text-[8px] px-1 py-0.2 bg-emerald-500/20 text-emerald-400 rounded font-mono">
+                      {userProfile.badge}
+                    </span>
                   </div>
-                  <div className="text-[8px] font-bold text-textMuted uppercase tracking-wider">
-                    {userProfile.role || "Officer Active"}
+                  <div className="text-[8px] font-bold text-textMuted uppercase tracking-wider mt-0.5">
+                    📍 {gpsStatus !== "Standby" ? gpsStatus : `${userProfile.latitude.toFixed(2)}°N, ${userProfile.longitude.toFixed(2)}°E`}
                   </div>
                 </div>
               </div>
+
+              {/* Refresh Live GPS Button */}
+              <button
+                onClick={() => requestLiveGPS(userProfile)}
+                title="Sync Live Device GPS"
+                className="p-2 border border-borderColor bg-bgPrimary hover:bg-blue-600/10 hover:border-blue-500 text-textSecondary hover:text-blue-600 rounded-xl text-[10px] font-black transition flex items-center gap-1"
+              >
+                <Compass className="w-3.5 h-3.5 text-blue-500 animate-spin-slow" />
+              </button>
+
               <button
                 onClick={handleLogout}
                 className="px-3 py-2 border border-borderColor bg-bgPrimary hover:bg-borderColor/40 text-textSecondary hover:text-textPrimary rounded-xl text-[10px] font-black uppercase transition"
@@ -409,11 +486,11 @@ function App() {
                     <ShieldCheck className="w-4 h-4" />
                   </span>
                   <h3 className="font-black text-sm text-textPrimary uppercase tracking-wide">
-                    Authorized Officer Portal
+                    Authorized Field Officer Portal
                   </h3>
                 </div>
                 <p className="text-[10px] text-textSecondary mt-0.5">
-                  Restricted to 2 authorized disaster management directors via Gmail & Password
+                  Restricted to authorized emergency responders with Live Device GPS
                 </p>
               </div>
               <button onClick={() => setLoginModalOpen(false)}
@@ -425,7 +502,7 @@ function App() {
             {/* Quick 1-Click Credentials Select */}
             <div className="space-y-1.5">
               <label className="text-[9px] font-black text-textMuted uppercase tracking-wider block">
-                Select Authorized Officer Account:
+                Select Authorized Field Officer:
               </label>
               <div className="grid grid-cols-1 gap-2">
                 {AUTHORIZED_OFFICERS.map((officer) => (
@@ -447,7 +524,7 @@ function App() {
                         </span>
                       </div>
                       <div className="text-[10px] font-semibold text-textSecondary font-mono mt-0.5">
-                        {officer.email}
+                        {officer.email} • {officer.role}
                       </div>
                     </div>
                     <span className="text-[9px] font-bold text-blue-600">Select</span>
@@ -465,7 +542,7 @@ function App() {
                 <input
                   type="email"
                   required
-                  placeholder="e.g. dr.rajmohan@gmail.com"
+                  placeholder="e.g. officer.sharma@gmail.com"
                   value={inputEmail}
                   onChange={(e) => setInputEmail(e.target.value)}
                   className="w-full px-3 py-2 rounded-xl bg-bgPrimary border border-borderColor text-xs font-semibold text-textPrimary focus:outline-none focus:border-blue-600 font-mono"
@@ -498,7 +575,7 @@ function App() {
                 className="w-full py-2.5 bg-blue-600 hover:bg-blue-700 text-white text-[10px] font-black uppercase rounded-xl transition shadow-md shadow-blue-500/10 flex items-center justify-center gap-1.5"
               >
                 <ShieldCheck className="w-4 h-4" />
-                {isSyncing ? "Verifying Credentials..." : "Authenticate & Connect Officer"}
+                {isSyncing ? "Acquiring Live GPS & Verifying..." : "Authenticate with Live GPS"}
               </button>
             </form>
           </div>
